@@ -42,8 +42,9 @@ def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
 
     # Generate list of errors
     probs = np.array([sub_prob, ins_prob, del_prob])
+    # 0 for subs, 1 for ins, 2 for del
     error_types = np.random.choice(np.arange(3), total_error_count, True, probs/np.sum(probs))
-    error_counts = Counter(error_types)
+    error_counts = Counter(error_types) 
     
     # Generate the stream of bases for substitution and insertion
     random_base_stream = np.random.choice(AlPHABET, error_counts[0] + error_counts[1], True)
