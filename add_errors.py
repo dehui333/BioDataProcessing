@@ -12,8 +12,6 @@ This is a script to mutate (add errors) to sequences in fasta/q files.
 I would have written it in C++ except that that's too troublesome.
 I hope this is not too slow.
 
-* The substitution can result in unchanged bases, so measured error rate may differ.
-
 Dehui 10/08/2022
 '''
 
@@ -41,7 +39,10 @@ the third the stream of random bases for substitution and insertion.
 '''
 def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     # generate a total error count
-    total_error_count = np.random.normal(seq_len * (sub_prob + ins_prob + del_prob), 0.05 * seq_len)
+    total_prob = sub_prob + ins_prob + del_prob
+    mean_error_count = seq_len * total_prob
+    total_error_count = np.random.normal(mean_error_count, 0.05 * mean_error_count)
+    print(f'percentage {total_error_count/seq_len}')
     total_error_count = int(total_error_count)
     if total_error_count <= 0:
         return None
