@@ -30,12 +30,15 @@ None, None, None, None, 3
 
 
 '''
-Returns 3 lists. The first 2 are of the same lengths.
-The first indicates the error positions, 
+Returns 4 lists. The first 2 are of the same lengths.
+1. The error positions, 
 - 0 indexed
-the second the error types,
+2. The error types,
 - 0 for substitution, 1 for insertion, 2 for deletion
-the third the stream of random bases for substitution and insertion.
+3. The stream of random bases for insertion
+4. The number of shifts(1-3) to transform bases for substitution, according to a
+cyclic order. i.e. A -> C -> G -> T -> A -> ...
+
 '''
 def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     # generate a total error count

@@ -19,6 +19,7 @@ def get_genome_length(genome_path):
         total_len += len(record)
     return total_len
 
+# For Seqrequester
 def get_length_profile(reads_path):
     profile_path = reads_path + '.profile'
     if os.path.exists(profile_path):
