@@ -22,7 +22,9 @@ def get_genome_length(genome_path):
 def get_length_profile(reads_path):
     profile_path = reads_path + '.profile'
     if os.path.exists(profile_path):
+        print(f'Using {profile_path} as reads length distribution profile...')
         return profile_path
+    print('Generating reads length distribution profile...')
     lengths = []
     for record in SeqIO.parse(reads_path, reads_path[-5:]):
         lengths.append(len(record))
@@ -34,7 +36,7 @@ def get_length_profile(reads_path):
             length, count = pair
             string = str(length) + ', ' + str(count) + '\n' 
             f.write(string)
-    print('Generated length profile file at ' + os.path.abspath(profile_path))
+    print('Generated reads length distribution profile file at ' + os.path.abspath(profile_path))
     return profile_path
 
 
@@ -55,6 +57,7 @@ def seqreq_perfect_reads(config):
     command.append(get_length_profile(length_profile_source))
     command.append('-genomesize')
     command.append(str(get_genome_length(genome_path)))
+    print('Simulating perfect reads...')
     if output_path == '':
         subprocess.run(command)
     else:

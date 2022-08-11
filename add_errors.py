@@ -18,7 +18,17 @@ Dehui 10/08/2022
 '''
 
 AlPHABET = ['A', 'C', 'G', 'T']
-
+BASE_TO_INT = [
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, None, None, None, None, None,
+None, None, None, None, None, 0, None, 1, None, None,
+None, 2, None, None, None, None, None, None, None, None,
+None, None, None, None, 3 
+]
 
 
 '''
@@ -47,27 +57,34 @@ def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     error_counts = Counter(error_types) 
     
     # Generate the stream of bases for substitution and insertion
-    random_base_stream = np.random.choice(AlPHABET, error_counts[0] + error_counts[1], True)
-    return error_positions, error_types, random_base_stream
+    ins_base_stream = np.random.choice(AlPHABET, error_counts[1], True)
+
+    # substitution error is encoded by the numbers 1 to 3 - representing the shift
+    # within the bases A C G T, with wrap around   
+    subs_shift_stream = np.random.choice([1, 2, 3], error_counts[0], True)
+    return error_positions, error_types, ins_base_stream, subs_shift_stream
 
 '''
 Applies the specified errors on a sequence, creating a mutated copy.
 '''
-def apply_errors(seq, error_positions, error_types, random_base_stream):
+def apply_errors(seq, error_positions, error_types, ins_base_stream, subs_shift_stream):
     new_string = ''
-    random_base_index = 0
+    ins_base_index = 0
+    subs_shift_index = 0
     next_segment_start = 0
     
     for i in range(len(error_positions)):
-        new_string += seq[next_segment_start:error_positions[i]]
+        error_position = int(error_positions[i])
+        base = seq[error_position]
+        new_string += seq[next_segment_start:error_position]
         if error_types[i] == 0: # sub
-            new_string += random_base_stream[random_base_index]
-            random_base_index += 1
+            new_string += AlPHABET[(BASE_TO_INT[ord(base)] + subs_shift_stream[subs_shift_index]) % 4]
+            subs_shift_index += 1
         elif error_types[i] == 1: # ins
-            new_string += seq[int(error_positions[i])] + random_base_stream[random_base_index]
-            random_base_index += 1
+            new_string += base + ins_base_stream[ins_base_index]
+            ins_base_index += 1
              
-        next_segment_start = error_positions[i] + 1
+        next_segment_start = error_position + 1
     new_string += seq[next_segment_start:]
     return new_string
 
@@ -75,12 +92,12 @@ def apply_errors(seq, error_positions, error_types, random_base_stream):
 def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob):
     file_type = input_path[-5:]
     records =  list(SeqIO.parse(input_path, file_type))
+    print('Simulating errors...')
     for record in records:
         simulated_errors = generate_errors(len(record.seq), sub_prob, ins_prob, del_prob)
         if simulated_errors is None:
             continue
-        error_positions, error_types, random_base_stream = simulated_errors
-        record.seq = Seq(apply_errors(record.seq, error_positions, error_types, random_base_stream))
+        record.seq = Seq(apply_errors(record.seq, *simulated_errors))
     SeqIO.write(records, output_path, file_type)
 
 if __name__ == '__main__':
@@ -93,3 +110,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     add_errors(args.input, args.output, args.sub, args.ins, args.dele)
+    
+
