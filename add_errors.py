@@ -66,7 +66,7 @@ def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     # 0 for subs, 1 for ins, 2 for del
     error_types = np.random.choice(np.arange(3), total_error_count, True, probs/np.sum(probs))
     error_counts = Counter(error_types) 
-    # Generate the stream of bases for substitution and insertion
+    # Generate the stream of bases for  insertion
     ins_base_stream = np.random.choice(AlPHABET, error_counts[1], True)
 
     # substitution error is encoded by the numbers 1 to 3 - representing the shift
@@ -113,7 +113,6 @@ def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob, num_proc):
     print('Simulating errors...')
     seqs = [record.seq for record in records]
 
-    # plain map seems to be best
     if num_proc > 1:      
         result = pool.map(f, seqs)
         pool.close()
