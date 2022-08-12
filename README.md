@@ -1,4 +1,4 @@
-# SimulateData
+# BioDataProcessing
 This repo contains scripts to simulate reads with simple substitution, insertion and deletion errors from a genome. 
 
 ## Overview
