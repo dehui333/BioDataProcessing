@@ -18,6 +18,7 @@ if __name__ == '__main__':
     # for adding error
     parser.add_argument('-p', '--perfect_output', type=str, help='output path of the perfect reads.')
     parser.add_argument('-e', '--error_output', type=str, help='output path of the reads with error.')
+    parser.add_argument('-t', '--procs', type=int, default=1, help='number of processes to use.')
     parser.add_argument('--sub', type=float, default=0.03, help='substitution rate.')
     parser.add_argument('--ins', type=float, default=0.03, help='insertion rate.')
     parser.add_argument('--dele', type=float, default=0.03, help='deletion rate.')
@@ -30,5 +31,5 @@ if __name__ == '__main__':
     
 
     seqreq_perfect_reads(config)
-    add_errors(args.perfect_output, args.error_output, args.sub, args.ins, args.dele)
+    add_errors(args.perfect_output, args.error_output, args.sub, args.ins, args.dele, args.procs)
 

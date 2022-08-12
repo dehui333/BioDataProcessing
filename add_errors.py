@@ -4,6 +4,8 @@ from Bio.Seq import MutableSeq
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from collections import Counter
+from functools import partial
+from multiprocessing import Pool
 import numpy as np
 import random
 
@@ -44,8 +46,7 @@ def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     # generate a total error count
     total_prob = sub_prob + ins_prob + del_prob
     mean_error_count = seq_len * total_prob
-    total_error_count = np.random.normal(mean_error_count, 0.05 * mean_error_count)
-    print(f'percentage {total_error_count/seq_len}')
+    total_error_count = np.random.normal(mean_error_count, 0.03 * mean_error_count)
     total_error_count = int(total_error_count)
     if total_error_count <= 0:
         return None
@@ -59,7 +60,6 @@ def generate_errors(seq_len, sub_prob, ins_prob, del_prob):
     # 0 for subs, 1 for ins, 2 for del
     error_types = np.random.choice(np.arange(3), total_error_count, True, probs/np.sum(probs))
     error_counts = Counter(error_types) 
-    
     # Generate the stream of bases for substitution and insertion
     ins_base_stream = np.random.choice(AlPHABET, error_counts[1], True)
 
@@ -92,27 +92,42 @@ def apply_errors(seq, error_positions, error_types, ins_base_stream, subs_shift_
     new_string += seq[next_segment_start:]
     return new_string
 
-
-def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob):
+def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob, num_proc):
     file_type = input_path[-5:]
+    global f
+    def f(seq):
+        simulated_errors = generate_errors(len(seq), sub_prob, ins_prob, del_prob)
+        if simulated_errors is None:
+            return None
+        return apply_errors(seq, *simulated_errors)
+    
+
     records =  list(SeqIO.parse(input_path, file_type))
     print('Simulating errors...')
-    for record in records:
-        simulated_errors = generate_errors(len(record.seq), sub_prob, ins_prob, del_prob)
-        if simulated_errors is None:
+    seqs = [record.seq for record in records]
+
+    # plain map seems to be best
+    if num_proc > 1: 
+        with Pool(num_proc) as pool:
+            result = pool.map(f, seqs)
+    else:
+        result = list(map(f, seqs))    
+    for i in range(len(records)):
+        if result[i] == None:
             continue
-        record.seq = Seq(apply_errors(record.seq, *simulated_errors))
+        records[i].seq = Seq(result[i])
     SeqIO.write(records, output_path, file_type)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Add simple errors to reads in a fasta/q file.')
     parser.add_argument('-i', '--input', type=str, help='path of the input fasta/q file.')
     parser.add_argument('-o', '--output', type=str, help='path of the output file.')
+    parser.add_argument('-t', '--procs', type=int, default = 1, help='number of processes to use.')
     parser.add_argument('--sub', type=float, default=0.03, help='substitution rate.')
     parser.add_argument('--ins', type=float, default=0.03, help='insertion rate.')
     parser.add_argument('--dele', type=float, default=0.03, help='deletion rate.')
     args = parser.parse_args()
 
-    add_errors(args.input, args.output, args.sub, args.ins, args.dele)
+    add_errors(args.input, args.output, args.sub, args.ins, args.dele, args.procs)
     
 
