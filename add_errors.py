@@ -100,16 +100,17 @@ def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob, num_proc):
         if simulated_errors is None:
             return None
         return apply_errors(seq, *simulated_errors)
-    
+    if num_proc > 1:
+        pool = Pool(num_proc)
 
     records =  list(SeqIO.parse(input_path, file_type))
     print('Simulating errors...')
     seqs = [record.seq for record in records]
 
     # plain map seems to be best
-    if num_proc > 1: 
-        with Pool(num_proc) as pool:
-            result = pool.map(f, seqs)
+    if num_proc > 1:      
+        result = pool.map(f, seqs)
+        pool.close()
     else:
         result = list(map(f, seqs))    
     for i in range(len(records)):
