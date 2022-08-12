@@ -2,7 +2,7 @@
 This repo contains scripts to deal with biological sequence data.
 
 ## Overview
-1. simulate_perfect_reads.py - basically just a wrapper over Seqrequester. Requires a config file.
+1. simulate_perfect_reads.py - basically just a wrapper over Seqrequester. Requires a config file(a sample is in the repo).
 
 2. add_errors.py - add errors to sequences in a fasta/q file.
 
