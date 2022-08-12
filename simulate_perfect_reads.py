@@ -5,11 +5,15 @@ import configparser
 import os.path
 import subprocess
 
-
-
-
-
 '''
+Dependencies:
+
+Python libraries:
+-BioPython
+
+Tools:
+-Seqrequester
+
 This is a script for generating perfect simulated reads using existing tools, currently: seqrequester.
 
 '''

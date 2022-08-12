@@ -10,6 +10,12 @@ import numpy as np
 import random
 
 '''
+Dependencies:
+
+Python libraries:
+-BioPython
+-Numpy
+
 This is a script to mutate (add errors) to sequences in fasta/q files.
 I would have written it in C++ except that that's too troublesome.
 I hope this is not too slow.

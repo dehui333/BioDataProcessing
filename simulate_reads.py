@@ -4,6 +4,15 @@ import configparser
 from simulate_perfect_reads import seqreq_perfect_reads
 
 '''
+Dependencies:
+
+Python libraries:
+-BioPython
+-Numpy
+
+Tools:
+-SeqRequester
+
 This script generates simulated reads with simple errors from an input genome fasta file.
 Uses the same config file format as simulating perfect reads, though its output path will be ignored.
 '''
