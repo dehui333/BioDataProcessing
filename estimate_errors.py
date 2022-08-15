@@ -44,8 +44,8 @@ def estimate_error_bam(bam_path):
 '''
 Given a path to a read set (fasta/q) and a reference assembly, estimate error rate in read set.
 '''
-def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1):
-    sam_path = Path(reads_path).stem + '_to_' + Path(reference_path).stem + '.sam'
+def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1): 
+    sam_path = os.path.dirname(reads_path) + '/'+ Path(reads_path).stem + '_to_' + Path(reference_path).stem + '.sam'
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
         with open(sam_path, 'w') as sam_file:

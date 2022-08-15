@@ -20,6 +20,9 @@ This is a script to mutate (add errors) to sequences in fasta/q files.
 I would have written it in C++ except that that's too troublesome.
 I hope this is not too slow.
 
+* If adding error to a fastq file, the quality values will be cleared and the output will be fasta.
+
+
 Dehui 10/08/2022
 '''
 
@@ -110,9 +113,15 @@ def add_errors(input_path, output_path, sub_prob, ins_prob, del_prob, num_proc):
         pool = Pool(num_proc)
 
     records =  list(SeqIO.parse(input_path, file_type))
-    print('Simulating errors...')
-    seqs = [record.seq for record in records]
+    
 
+    print('Simulating errors...')
+    if file_type == 'fastq':
+        file_type = 'fasta'
+        for record in records:
+            record.letter_annotations.clear()
+    seqs = [record.seq for record in records]
+    
     if num_proc > 1:      
         result = pool.map(f, seqs)
         pool.close()
