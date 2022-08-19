@@ -82,12 +82,17 @@ def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Estimate the error rate in a set of reads.')
-    parser.add_argument('-i', '--input', type=str, help='path of the input fasta/q file.')
+    parser.add_argument('-i', '--input', type=str, help='path of the input fasta/q or bam/sam file.')
     parser.add_argument('-r', '--ref', type=str, help='path of the reference assembly.')
     parser.add_argument('-t', '--num_threads', type=int, default=1, help='number of threads for mapping. [1]')
-    parser.add_argument('-k', action='store_true', help='whether to keep sam.')
+    parser.add_argument('-k', action='store_true', help='whether to keep sam created if input is fastx.')
+    parser.add_argument('-b', action='store_true', help='Input is a sam/bam.')
     args = parser.parse_args()
-    subs_rate, ins_rate, del_rate, Sc_rate, Hc_rate, unmapped_rate = estimate_error_reads(args.input, args.ref, args.k, args.num_threads)
+    if args.b == True:
+        rates = estimate_error_bam(args.input)
+    else:
+        rates = estimate_error_reads(args.input, args.ref, args.k, args.num_threads)
+    subs_rate, ins_rate, del_rate, Sc_rate, Hc_rate, unmapped_rate = rates
     print(f'substitution rate: {subs_rate * 100:.3}%')
     print(f'insertion rate: {ins_rate * 100:.3}%')
     print(f'deletion rate: {del_rate * 100:.3}%')
