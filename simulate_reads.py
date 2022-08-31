@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from add_errors import add_errors
 import argparse
 import configparser

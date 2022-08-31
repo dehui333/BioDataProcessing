@@ -1,8 +1,11 @@
+#!/usr/bin/env python
+
 import argparse
 from Bio import SeqIO
 from collections import Counter
 import configparser
 import os.path
+from pathlib import Path
 import subprocess
 
 '''
@@ -31,7 +34,11 @@ def get_length_profile(reads_path):
         return profile_path
     print('Generating reads length distribution profile...')
     lengths = []
-    for record in SeqIO.parse(reads_path, reads_path[-5:]):
+    file_type = Path(reads_path).suffix
+    file_type = file_type[1:]
+    if file_type in ['fq']:
+        file_type = 'fastq'
+    for record in SeqIO.parse(reads_path, file_type):
         lengths.append(len(record))
     counter = Counter(lengths)
     counter = counter.items()

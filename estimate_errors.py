@@ -24,6 +24,12 @@ This script is for estimating error rates in reads w.r.t. to a reference.
 It seems that as the error rates get larger, we tend to overestimate substitution rate
 and underestimate insertion and deletion rates? This has been observed in 
 pomoxis scripts' assess_assembly. (could be due to misalignments at higher error rate?)
+
+
+need:
+1. acccept additional options
+2. 
+
 '''
 
 
