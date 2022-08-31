@@ -14,7 +14,7 @@ Rename each sequence in a orderly fashion.
 '''    
 def ordered_names(input_path, output_path, f):
     file_type = Path(input_path).suffix
-    file_name = Path(output_path).stem
+    output_name = Path(output_path).stem
     records =  list(SeqIO.parse(input_path, file_type))
     index = 0
     for record in records:
@@ -32,7 +32,6 @@ Append a suffix to all sequence names.
 def suffix_names(input_path, output_path, suffix):
     file_type = Path(input_path).suffix
     file_type = file_type[1:]
-    file_name = Path(output_path).stem
     if file_type in ['fq']:
         file_type = 'fastq'
     records =  list(SeqIO.parse(input_path, file_type))
@@ -58,6 +57,21 @@ def bam_pair(input_path, output_path):
         output.write(read)
     output.close()
     samfile.close()
+
+
+def filter_reads(input_path, output_path, predicate):
+    file_type = Path(input_path).suffix
+    file_type = file_type[1:]
+    if file_type in ['fq']:
+        file_type = 'fastq'
+    records =  list(SeqIO.parse(input_path, file_type))
+    new_records = []
+    for record in records:
+        if predicate(record):
+            new_records.append(record)
+    if file_type in ['fq']:
+        file_type = 'fastq'
+    SeqIO.write(new_records, output_path, file_type)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Some utility functionalities.')
