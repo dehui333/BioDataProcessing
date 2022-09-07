@@ -7,7 +7,8 @@ from pathlib import Path
 import pysam
 '''
 Various ways to modify the records in a sequence file.
-
+* I think just printing output to stdout will be faster?
+* should try to use low level parser from SeqIO such as from Bio.SeqIO.FastaIO import SimpleFastaParser
 '''
 
 '''
