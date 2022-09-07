@@ -160,7 +160,7 @@ def modify_contig(modifications, contig_name, contig):
         nonlocal new_record
         nonlocal contig_name
         if new_record:
-            print(contig_name + '_' + str(chunk_idx))
+            print('>'+contig_name + '_' + str(chunk_idx))
             chunk_idx += 1
             new_record = False
         if end_of_record:
