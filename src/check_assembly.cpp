@@ -1,0 +1,232 @@
+#include <assert.h>
+#include <Python.h>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include "models.h"
+
+#define TYPE_COV 0 // no/low coverage
+#define TYPE_INS 1
+#define TYPE_DEL 2
+#define TYPE_MIS 4
+#define TYPE_HP 5
+#define A_INT 1
+#define C_INT 2
+#define G_INT 4
+#define T_INT 8
+#define N_INT 15
+
+extern uint8_t min_mapping_quality_global;
+
+inline bool is_HP(const char *contig, std::uint32_t pos, std::uint32_t contig_len)
+{
+
+    std::uint8_t i;
+
+    bool hp = true;
+    
+    if (pos + 3 >= contig_len)
+    {
+        hp = false;
+    }
+    else
+    {
+        for (i = 2; i <= 3; i++)
+        {
+            if (contig[pos + 1] != contig[pos + i])
+                hp = false;
+        }
+    }
+    if (hp)
+        return true;
+
+    hp = true;
+    if (pos - 3 < 0)
+    {
+        hp = false;
+    }
+    else
+    {
+        for (i = 2; i <= 3; i++)
+        {
+            if (contig[pos - 1] != contig[pos - i])
+                hp = false;
+        }
+    }
+    return hp;
+}
+
+static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
+{
+    const char *bam_path;
+    const char *contig_name;
+    const char *contig;
+    std::uint64_t contig_len; // For some reason 32bits leads to wrong value here.
+    std::uint64_t min_mapq;   // I make others 64 bits too just in case
+    std::uint64_t min_coverage;
+    double min_diff_prop;
+    bool skip_HP;
+    if (!PyArg_ParseTuple(args, "ssskIIdp", &bam_path, &contig_name, &contig,
+                          &contig_len, &min_mapq, &min_coverage, &min_diff_prop, &skip_HP))
+        return NULL;
+    auto bam = readBAM(bam_path);
+    std::string contig_name_string{contig_name};
+    auto pileup_iter = bam->pileup(contig_name_string + ":");
+    min_mapping_quality_global = min_mapq;
+    struct diff
+    {
+        std::uint32_t pos;
+        std::uint8_t type;
+        std::uint32_t len; // does not indicate ins len but len of stretch of positions on contig
+        explicit diff(std::uint32_t pos, std::uint8_t type, std::uint32_t len) : pos(pos), type(type), len(len) {}
+        inline void extend(std::uint32_t len = 1) { this->len += len; }
+    };
+
+    std::vector<diff> diffs;
+    auto extend = [&diffs](std::uint32_t pos, std::uint8_t type, std::uint32_t len)
+    {
+        if (!diffs.empty() && diffs.back().type == type && (diffs.back().pos + diffs.back().len) == pos)
+        {
+            diffs.back().extend(len);
+        }
+        else
+        {
+            diffs.emplace_back(pos, type, len);
+        }
+    };
+    long expected_rpos = 0;
+    
+    while (pileup_iter->has_next())
+    {
+        auto column = pileup_iter->next();
+        long rpos = column->position;
+        if (rpos < pileup_iter->start())
+            continue;
+        if (rpos >= pileup_iter->end())
+            break;
+
+        if (rpos > expected_rpos)
+        {
+            extend(expected_rpos, TYPE_COV, rpos - expected_rpos);
+        }
+        expected_rpos = rpos + 1;
+        std::uint16_t coverage = column->count();
+
+        if (coverage < min_coverage)
+        {
+            extend(rpos, TYPE_COV, 1);
+            continue;
+        }
+        // std::cout << rpos << ", " << coverage << std::endl;
+        std::uint16_t num_del = 0;
+        std::uint16_t num_ins = 0;
+        std::uint16_t counts[16];
+        counts[A_INT] = 0;
+        counts[C_INT] = 0;
+        counts[G_INT] = 0;
+        counts[T_INT] = 0;
+        counts[N_INT] = 0;
+        char int2char[16] = {
+            'X', 'A', 'C', 'X',
+            'G', 'X', 'X', 'X',
+            'T', 'X', 'X', 'X',
+            'X', 'X', 'X', 'N'};
+        while (column->has_next())
+        {
+            auto r = column->next();
+            if (r->is_refskip())
+                continue;
+            if (r->is_del())
+            {
+                // DELETION
+                num_del++;
+            }
+            else
+            {
+                // POSITION
+                auto ibase = r->ibase(0);
+                counts[ibase]++;
+
+                if (r->indel() > 0)
+                {
+                    num_ins++;
+                }
+            }
+        }
+        assert(coverage == counts[A_INT] + counts[C_INT] + counts[G_INT] + counts[T_INT] + counts[N_INT] + num_del + num_ins);
+        if ((double)num_del / coverage >= min_diff_prop)
+        {
+            if (is_HP(contig, rpos, contig_len))
+            {
+                if (!skip_HP)
+                    extend(rpos, TYPE_HP, 1);
+            }
+            else
+            {
+                extend(rpos, TYPE_INS, 1);
+            }
+
+            continue;
+        }
+
+        std::uint8_t idx[5] = {A_INT, C_INT, G_INT, T_INT, N_INT};
+        bool has_mis = false;
+        for (auto i = 0; i < 5; i++)
+        {
+            if (int2char[idx[i]] != contig[rpos] && (double)counts[idx[i]] / coverage >= min_diff_prop)
+            {
+                has_mis = true;
+                break;
+            }
+        }
+
+        if (has_mis)
+        {
+            extend(rpos, TYPE_MIS, 1);
+            continue;
+        }
+
+        if ((double)num_ins / coverage >= min_diff_prop)
+        {
+            if (is_HP(contig, rpos, contig_len))
+            {
+                if (!skip_HP)
+                    extend(rpos, TYPE_HP, 1);
+            }
+            else
+            {
+                extend(rpos, TYPE_DEL, 1);
+            }
+
+            continue;
+        }
+    }
+    PyObject *result_list = PyList_New(diffs.size());
+    for (std::uint32_t i = 0; i < diffs.size(); i++)
+    {
+        PyObject *diff_tuple = PyTuple_New(3);
+        PyTuple_SetItem(diff_tuple, 0, PyLong_FromUnsignedLong(diffs[i].pos));
+        PyTuple_SetItem(diff_tuple, 1, PyLong_FromUnsignedLong(diffs[i].type));
+        PyTuple_SetItem(diff_tuple, 2, PyLong_FromUnsignedLong(diffs[i].len));
+        PyList_SetItem(result_list, i, diff_tuple);
+    }
+    return result_list;
+}
+
+static PyMethodDef check_assembly_methods[] = {
+    {"get_diff", get_diff_cpp, METH_VARARGS, "Return apparent disagreements between reads and assembly."},
+    {NULL, NULL, 0, NULL}};
+
+static struct PyModuleDef check_assembly_definition = {
+    PyModuleDef_HEAD_INIT,
+    "check_assembly",
+    "Check assembly using aligned reads.",
+    -1,
+    check_assembly_methods};
+
+PyMODINIT_FUNC PyInit_check_assembly(void)
+{
+    Py_Initialize();
+    return PyModule_Create(&check_assembly_definition);
+}

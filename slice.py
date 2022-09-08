@@ -2,6 +2,7 @@
 
 import argparse
 from Bio import SeqIO
+from check_assembly import get_diff
 from collections import namedtuple
 import os.path
 from pathlib import Path
@@ -11,6 +12,8 @@ import sys
 
 '''
 Do slicing and modifications of assembly.
+
+* Merging diffs that are close together may be a thing worth having?
 '''
 '''
 A namedtuple representing a difference between the assembly and reference.
@@ -25,7 +28,6 @@ CODE_DEL = 2
 CODE_MIS = 8
 CODE_INS = 1
 CODE_HP = 10
-
 CODE_SOFT = 4
 CODE_HARD = 5
 
@@ -37,6 +39,12 @@ OP_REPLACE = 2
 OP_SPLIT = 3
 operation = namedtuple('operation', ['pos', 'type', 'length', 'data'])
 
+
+TYPE_COV = 0 
+TYPE_INS = 1
+TYPE_DEL = 2
+TYPE_MIS = 4
+TYPE_HP = 5
 
 '''
 Gives list of differences between query and ref.
@@ -59,9 +67,9 @@ def contig_ref_diff(query, ref, rstart, cigartuples):
             deleted = ref[rpos:rpos+count]
             left = ref[rpos-3:rpos]
             right = ref[rpos+count:rpos+count+3]
-            if left and left[-1] == deleted[0] and left == left[0] * 3:
+            if right and right[0] == deleted[-1] and right == right[0] * 3:
                 hp = True
-            elif right and right[0] == deleted[-1] and right == right[0] * 3:
+            elif left and left[-1] == deleted[0] and left == left[0] * 3:
                 hp = True
             if hp:
                 ls.append(diff(qpos-1, CODE_HP, deleted, count))
@@ -115,10 +123,11 @@ def assm_ref_diff(assm2ref_bam_path, ref_path):
     return output_dict
 
 '''
+for assm2ref
 Input: A list of diff namedtuples
 Output: A list of operations to modify the contig
 '''
-def make_operations(diffs, skip_mismatch=False, fix_HP=False):
+def make_operations(diffs, is_reverse, contig_len, skip_mismatch=False, fix_HP=False):
     ls = []
     for diff in diffs:
         if diff.type == CODE_HP:
@@ -142,7 +151,27 @@ def make_operations(diffs, skip_mismatch=False, fix_HP=False):
             print('STH WRONG')
     return ls
 
-
+# for reads2assm
+def make_operations2(diffs):
+    # 0 - pos, 1 - type, 2 - len
+    ls = []
+    for diff in diffs:
+        if diff[1] == TYPE_INS:
+            ls.append(operation(diff[0]+1, OP_DEL, diff[2], None))
+            ls.append(operation(diff[0] + diff[2]+1, OP_SPLIT, None, None))
+        elif diff[1] == TYPE_DEL:
+            ls.append(operation(diff[0]+1, OP_SPLIT, None, None))
+        elif diff[1] == TYPE_MIS:
+            ls.append(operation(diff[0], OP_DEL, diff[2], None))
+            ls.append(operation(diff[0]+diff[2], OP_SPLIT, None, None))
+        elif diff[1] == TYPE_COV:
+            ls.append(operation(diff[0], OP_DEL, diff[2], None))
+            ls.append(operation(diff[0]+diff[2], OP_SPLIT, None, None))
+        elif diff[1] == TYPE_HP:
+            continue # do nothing
+        else:
+            print('STH WRONG2') 
+    return ls
 '''
 'modifications' is a list of operations.
 There are 4 types of operations - deletion, insert, replace and split.
@@ -206,18 +235,17 @@ Modify assembly according to its differences with the reference.
 contigs: dictionary of fasta records
 diffs: dictionary of contig_name : (is_reverse, list of diffs) 
 '''
-def modify_assembly(contigs, diffs, skip_mismatch=False, fix_HP=False):
+def modify_assembly(contigs, diffs_assm2ref, skip_mismatch=False, fix_HP=False):
     #records =  SeqIO.index(assm_path, 'fasta')
-    for contig_name, diff_tuple in diffs.items():
-        print('modifying ' + contig_name, file=sys.stderr)
-        #print(contig_name)
+    for contig_name, diff_tuple in diffs_assm2ref.items():
+        #print('modifying ' + contig_name, file=sys.stderr)
         record = contigs[contig_name]
         #print('len: ' + str(len(record)), file=sys.stderr)
         is_reverse = diff_tuple[0]
         differences = diff_tuple[1]
-        if is_reverse:
-            record = record.reverse_complement()
-        ops = make_operations(differences, skip_mismatch, fix_HP)
+        #if is_reverse:
+        #    record = record.reverse_complement()
+        ops = make_operations(differences, is_reverse, len(record), skip_mismatch, fix_HP)
         modify_contig(ops, contig_name, record.seq)
 
 '''
@@ -246,11 +274,15 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Compare assembly with reference/reads.')
     parser.add_argument('-i', '--assm', type=str, help='path of the assembly.')
     parser.add_argument('-r', '--ref', type=str, help='path of the reference fasta.')
+    parser.add_argument('--rd', type=str, default=None, help='Reads to assembly bam.')
     #parser.add_argument('-o', '--output', type=str, help='path of the output assembly fasta.')
     parser.add_argument('-t', '--num_threads', type=str, help='number of threads to use.')
     parser.add_argument('-f', action='store_true', help='force creation of sam.')
     args = parser.parse_args()
-    assm2ref_sam_path = align_assm2ref(args.assm, args.ref, args.num_threads, args.f)
+    #assm2ref_sam_path = align_assm2ref(args.assm, args.ref, args.num_threads, args.f)
     contigs =  SeqIO.index(args.assm, 'fasta')
-    diffs = assm_ref_diff(assm2ref_sam_path, args.ref)
-    modify_assembly(contigs, diffs, True, True)
+    #contig = contigs['contig_26']
+    #x = get_diff(args.rd, 'contig_26', str(contig.seq), len(contig), 20, 5, 0.4, True)
+    #print(x)
+    diffs_assm2ref = assm_ref_diff(assm2ref_sam_path, args.ref)
+    modify_assembly(contigs, diffs_assm2ref, skip_mismatch=True, fix_hp=True)
