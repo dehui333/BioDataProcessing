@@ -11,6 +11,8 @@
 #define TYPE_DEL 2
 #define TYPE_MIS 4
 #define TYPE_HP 5
+#define TYPE_NONE 6
+#define TYPE_CLEAR 7
 #define A_INT 1
 #define C_INT 2
 #define G_INT 4
@@ -62,12 +64,12 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
     const char *bam_path;
     const char *contig_name;
     const char *contig;
-    std::uint64_t contig_len; // For some reason 32bits leads to wrong value here.
-    std::uint64_t min_mapq;   // I make others 64 bits too just in case
-    std::uint64_t min_coverage;
+    long contig_len; // There's some problem with these and ParseTuple if I try to use unsigned..
+    long min_mapq;   
+    long min_coverage;
     double min_diff_prop;
     bool skip_HP;
-    if (!PyArg_ParseTuple(args, "ssskIIdp", &bam_path, &contig_name, &contig,
+    if (!PyArg_ParseTuple(args, "sssllldp", &bam_path, &contig_name, &contig,
                           &contig_len, &min_mapq, &min_coverage, &min_diff_prop, &skip_HP))
         return NULL;
     auto bam = readBAM(bam_path);
@@ -82,7 +84,6 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
         explicit diff(std::uint32_t pos, std::uint8_t type, std::uint32_t len) : pos(pos), type(type), len(len) {}
         inline void extend(std::uint32_t len = 1) { this->len += len; }
     };
-
     std::vector<diff> diffs;
     auto extend = [&diffs](std::uint32_t pos, std::uint8_t type, std::uint32_t len)
     {
@@ -96,15 +97,22 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
         }
     };
     long expected_rpos = 0;
-    
+
+    // need to do sth about has_next but 0 diff
+    if (!pileup_iter->has_next())
+    {
+        extend(0, TYPE_NONE, 0);
+    }
     while (pileup_iter->has_next())
     {
+        //std::cout << "BEFORE " << std::endl;
         auto column = pileup_iter->next();
         long rpos = column->position;
         if (rpos < pileup_iter->start())
             continue;
         if (rpos >= pileup_iter->end())
             break;
+        //std::cout <<"PASS" << std::endl;
 
         if (rpos > expected_rpos)
         {
@@ -154,6 +162,7 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
                 }
             }
         }
+        
         assert(coverage == counts[A_INT] + counts[C_INT] + counts[G_INT] + counts[T_INT] + counts[N_INT] + num_del + num_ins);
         if ((double)num_del / coverage >= min_diff_prop)
         {
@@ -169,7 +178,6 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
 
             continue;
         }
-
         std::uint8_t idx[5] = {A_INT, C_INT, G_INT, T_INT, N_INT};
         bool has_mis = false;
         for (auto i = 0; i < 5; i++)
@@ -180,7 +188,6 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
                 break;
             }
         }
-
         if (has_mis)
         {
             extend(rpos, TYPE_MIS, 1);
@@ -201,6 +208,11 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
 
             continue;
         }
+
+    }
+    if (diffs.empty())
+    {
+        extend(0, TYPE_CLEAR, 0);
     }
     PyObject *result_list = PyList_New(diffs.size());
     for (std::uint32_t i = 0; i < diffs.size(); i++)
@@ -211,6 +223,7 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
         PyTuple_SetItem(diff_tuple, 2, PyLong_FromUnsignedLong(diffs[i].len));
         PyList_SetItem(result_list, i, diff_tuple);
     }
+    
     return result_list;
 }
 

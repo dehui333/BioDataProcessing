@@ -45,6 +45,8 @@ TYPE_INS = 1
 TYPE_DEL = 2
 TYPE_MIS = 4
 TYPE_HP = 5
+TYPE_NONE = 6
+TYPE_CLEAR = 7
 
 '''
 Gives list of differences between query and ref.
@@ -223,8 +225,10 @@ def modify_contig(modifications, contig_name, contig):
             print(content, end='')
 
     for op in modifications:
+        if op.pos < pos:
+            continue
         if op.type == OP_INS:
-            if pos <= op.pos: 
+            if pos <= op.pos: # actually will always be true
             # print till include op.pos as ins is after
                 print_chunk(contig[pos:op.pos+1])
             print_chunk(op.data)
@@ -263,7 +267,7 @@ def modify_assembly(contigs, diffs_assm2ref, r2assm, skip_mismatch=False, fix_HP
     #records =  SeqIO.index(assm_path, 'fasta')
     for contig_name, record in contigs.items():
         ops1 = [] # from assm2ref 
-        ops2 = [] # from reads2assm      
+        ops2 = [] # from reads2assm     
         if diffs_assm2ref != None and contig_name in diffs_assm2ref.keys():
             diff_tuple = diffs_assm2ref[contig_name]
             is_reverse = diff_tuple[0]
@@ -271,7 +275,12 @@ def modify_assembly(contigs, diffs_assm2ref, r2assm, skip_mismatch=False, fix_HP
             ops1 = make_operations(differences, is_reverse, len(record), skip_mismatch, fix_HP)
         if r2assm != None:
             diffs = get_diff(r2assm, contig_name, str(record.seq), len(record), 20, 5, 0.4, True)
-            op2 = make_operations2(diffs)
+            if diffs[0][1] == TYPE_NONE:
+                print(contig_name + 'has no qualified reads aligned', sys.stderr)
+                continue
+            if diffs[0][1] == TYPE_CLEAR:
+                diffs.clear() # no problem with this contig
+            ops2 = make_operations2(diffs)
         ops = ops1 + ops2
         ops.sort(key=lambda tup: tup[0])
         modify_contig(ops, contig_name, record.seq)     
