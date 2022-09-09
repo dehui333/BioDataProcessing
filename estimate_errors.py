@@ -35,6 +35,8 @@ need:
 
 '''
 Given a path to a bam/sam file which contains the reads aligned to the reference, output errors rates.
+Supplementary and secondary alignments are skipped.
+unmapped rate calculation excludes supp and secondary.
 '''
 def estimate_error_bam(bam_path):
     total_aligned_len = 0 # aligned parts (not clipped)
@@ -48,8 +50,10 @@ def estimate_error_bam(bam_path):
     num_records = 0
     num_unaligned = 0
     for alignment in bam.fetch(until_eof=True):
+        if alignment.is_secondary or alignment.is_supplementary:
+            continue
         num_records += 1
-        if alignment.cigarstring == None:
+        if alignment.is_unmapped:
             num_unaligned += 1
             continue
         stats = alignment.get_cigar_stats()
