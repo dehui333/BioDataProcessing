@@ -6,6 +6,8 @@ from pathlib import Path
 import pysam
 import subprocess
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 
 '''
 Dependencies:
@@ -50,7 +52,7 @@ def estimate_error_bam(bam_path):
     bam = pysam.AlignmentFile(bam_path) 
     num_records = 0
     num_unaligned = 0
-    bins = [0 * 10]
+    bins = [0] * 10
     for alignment in bam.fetch(until_eof=True):
         if alignment.is_secondary or alignment.is_supplementary:
             continue
@@ -115,5 +117,16 @@ if __name__ == '__main__':
     print(f'soft clip rate: {Sc_rate * 100:.3}%')
     print(f'hard clip rate: {Hc_rate * 100:.3}%')
     print(f'unmapped rate: {unmapped_rate * 100:.3}%')
+
     Sum = sum(bins)
-    print(bin[0]/Sum, bin[1]/Sum, bin[2]/Sum, bin[3]/Sum, bin[4]/Sum, bin[5]/Sum, bin[6]/Sum, bin[7]/Sum, bin[8]/Sum, bin[9]/Sum)
+    distribution = [('0.5%', bins[0]/Sum), ('1%', bins[1]/Sum), ('1.5%', bins[2]/Sum), ('2%', bins[3]/Sum), ('2.5%', bins[4]/Sum), ('3%', bins[5]/Sum), ('3.5%', bins[6]/Sum), ('4%', bins[7]/Sum), ('4.5%', bins[8]/Sum), ('5%', bins[9]/Sum)]
+    labels, ys = zip(*distribution)
+    xs = np.arange(len(labels))
+    width = 1
+
+    plt.bar(xs, ys, width, align='center')
+
+    plt.xticks(xs, labels)  # Replace default x-ticks with xs, then replace xs with labels
+    plt.yticks(ys)
+
+    plt.savefig('error_dist.png')
