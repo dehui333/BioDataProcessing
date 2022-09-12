@@ -17,6 +17,9 @@ def process_fastaq_file(in_path, out_path):
     for record in SeqIO.parse(in_path, file_type):
         r = rle(str(record.seq))
         sr = SeqRecord(Seq(r))
+        sr.id = record.id
+        sr.name = record.name
+        sr.description = record.description
         rles.append(sr)
 
     SeqIO.write(rles, out_path, 'fasta')
