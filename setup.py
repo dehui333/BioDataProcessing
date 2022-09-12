@@ -12,8 +12,8 @@ def configuration(parent_package='', top_path=None):
       config = Configuration('',
                              parent_package,
                              top_path)
-      config.add_extension('check_assembly',
-                           ['src/check_assembly.cpp', 'src/models.cpp'],
+      config.add_extension('check_alignment',
+                           ['src/check_alignment.cpp', 'src/models.cpp'],
                            extra_objects=['Dependencies/htslib-1.9/libhts.a'],
                            extra_compile_args=['-std=c++14'], language='c++',
                            extra_link_args=['-lz', '-lpthread'],
@@ -25,6 +25,6 @@ if __name__ == "__main__":
       from numpy.distutils.core import setup
 
       setup(
-        name='check_assembly',
+        name='check_alignment',
         version='0.0.1',
         configuration=configuration)

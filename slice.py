@@ -2,7 +2,7 @@
 
 import argparse
 from Bio import SeqIO
-from check_assembly import get_diff
+from check_alignment import get_diff_with_assm
 from collections import namedtuple
 import os.path
 from pathlib import Path
@@ -274,7 +274,7 @@ def modify_assembly(contigs, diffs_assm2ref, r2assm, skip_mismatch=False, fix_HP
             differences = diff_tuple[1]
             ops1 = make_operations(differences, is_reverse, len(record), skip_mismatch, fix_HP)
         if r2assm != None:
-            diffs = get_diff(r2assm, contig_name, str(record.seq), len(record), 20, 5, 0.4, True)
+            diffs = get_diff_with_assm(r2assm, contig_name, str(record.seq), len(record), 20, 5, 0.4, True)
             if diffs[0][1] == TYPE_NONE:
                 print(contig_name + 'has no qualified reads aligned', sys.stderr)
                 continue

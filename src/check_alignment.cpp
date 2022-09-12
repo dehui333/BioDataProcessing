@@ -59,7 +59,7 @@ inline bool is_HP(const char *contig, std::uint32_t pos, std::uint32_t contig_le
     return hp;
 }
 
-static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
+static PyObject *get_diff_with_assm_cpp(PyObject *self, PyObject *args)
 {
     const char *bam_path;
     const char *contig_name;
@@ -227,19 +227,19 @@ static PyObject *get_diff_cpp(PyObject *self, PyObject *args)
     return result_list;
 }
 
-static PyMethodDef check_assembly_methods[] = {
-    {"get_diff", get_diff_cpp, METH_VARARGS, "Return apparent disagreements between reads and assembly."},
+static PyMethodDef check_alignment_methods[] = {
+    {"get_diff_with_assm", get_diff_with_assm_cpp, METH_VARARGS, "Return apparent disagreements between reads and assembly."},
     {NULL, NULL, 0, NULL}};
 
-static struct PyModuleDef check_assembly_definition = {
+static struct PyModuleDef check_alignment_definition = {
     PyModuleDef_HEAD_INIT,
-    "check_assembly",
+    "check_alignment",
     "Check assembly using aligned reads.",
     -1,
-    check_assembly_methods};
+    check_alignment_methods};
 
-PyMODINIT_FUNC PyInit_check_assembly(void)
+PyMODINIT_FUNC PyInit_check_alignment(void)
 {
     Py_Initialize();
-    return PyModule_Create(&check_assembly_definition);
+    return PyModule_Create(&check_alignment_definition);
 }
