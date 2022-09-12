@@ -5,6 +5,7 @@ import os.path
 from pathlib import Path
 import pysam
 import subprocess
+import math
 
 '''
 Dependencies:
@@ -49,6 +50,7 @@ def estimate_error_bam(bam_path):
     bam = pysam.AlignmentFile(bam_path) 
     num_records = 0
     num_unaligned = 0
+    bins = [0 * 10]
     for alignment in bam.fetch(until_eof=True):
         if alignment.is_secondary or alignment.is_supplementary:
             continue
@@ -65,9 +67,15 @@ def estimate_error_bam(bam_path):
         total_H_clip += counts[5]
         total_mapped_len += alignment.infer_read_length()
         total_aligned_len += alignment.query_alignment_length
+        error_rate = (counts[1] + counts[2] + counts[4] + counts[5] + counts[8]) / alignment.infer_read_length()
+        if (error_rate == 0):
+            bins[0] += 1
+            continue
+        if (error_rate <= 0.05):
+            bins[math.ceil(error_rate * 200) - 1] += 1
         
     bam.close()
-    return total_mismatch/total_aligned_len, total_ins/total_aligned_len, total_del/total_aligned_len, total_S_clip/total_mapped_len, total_H_clip/total_mapped_len, num_unaligned/num_records
+    return total_mismatch/total_aligned_len, total_ins/total_aligned_len, total_del/total_aligned_len, total_S_clip/total_mapped_len, total_H_clip/total_mapped_len, num_unaligned/num_records, bins
 
 '''
 Given a path to a read set (fasta/q) and a reference assembly, estimate error rate in read set.
@@ -88,8 +96,6 @@ def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1):
         subprocess.run(['rm', sam_path])
     return rates
 
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Estimate the error rate in a set of reads.')
     parser.add_argument('-i', '--input', type=str, help='path of the input fasta/q or bam/sam file.')
@@ -102,10 +108,12 @@ if __name__ == '__main__':
         rates = estimate_error_bam(args.input)
     else:
         rates = estimate_error_reads(args.input, args.ref, args.k, args.num_threads)
-    subs_rate, ins_rate, del_rate, Sc_rate, Hc_rate, unmapped_rate = rates
+    subs_rate, ins_rate, del_rate, Sc_rate, Hc_rate, unmapped_rate, bins = rates
     print(f'substitution rate: {subs_rate * 100:.3}%')
     print(f'insertion rate: {ins_rate * 100:.3}%')
     print(f'deletion rate: {del_rate * 100:.3}%')
     print(f'soft clip rate: {Sc_rate * 100:.3}%')
     print(f'hard clip rate: {Hc_rate * 100:.3}%')
     print(f'unmapped rate: {unmapped_rate * 100:.3}%')
+    Sum = sum(bins)
+    print(bin[0]/Sum, bin[1]/Sum, bin[2]/Sum, bin[3]/Sum, bin[4]/Sum, bin[5]/Sum, bin[6]/Sum, bin[7]/Sum, bin[8]/Sum, bin[9]/Sum)
