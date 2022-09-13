@@ -2,7 +2,7 @@
 
 import argparse
 from Bio import SeqIO
-from check_alignment import get_diff_with_assm
+from check_alignment import get_snp_pos, get_diff_with_assm
 from collections import namedtuple
 import os.path
 from pathlib import Path
@@ -47,6 +47,7 @@ TYPE_MIS = 4
 TYPE_HP = 5
 TYPE_NONE = 6
 TYPE_CLEAR = 7
+
 
 '''
 Gives list of differences between query and ref.
@@ -321,6 +322,7 @@ def align_assm2ref(assm_path, ref_path, num_threads, force):
 
 
 if __name__ == '__main__':
+    
     parser = argparse.ArgumentParser(description='Compare assembly with reference/reads.')
     parser.add_argument('-i', '--assm', type=str, help='path of the assembly.')
     parser.add_argument('-r', '--ref', type=str, default=None, help='path of the reference fasta.')
@@ -329,10 +331,11 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--num_threads', type=str, help='number of threads to use.')
     parser.add_argument('-f', action='store_true', help='force creation of sam.')
     args = parser.parse_args()
-
     contigs =  SeqIO.index(args.assm, 'fasta')
+
     diffs_assm2ref = None
     if args.ref != None:
         assm2ref_sam_path = align_assm2ref(args.assm, args.ref, args.num_threads, args.f)
         diffs_assm2ref = assm_ref_diff(assm2ref_sam_path, args.ref)
     modify_assembly(contigs, diffs_assm2ref, args.rd, skip_mismatch=True, fix_HP=True)
+    
