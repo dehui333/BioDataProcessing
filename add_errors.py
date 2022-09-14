@@ -25,7 +25,6 @@ I hope this is not too slow.
 * If adding error to a fastq file, the quality values will be cleared and the output will be fasta.
 * should try to use low level parser from SeqIO such as from Bio.SeqIO.FastaIO import SimpleFastaParser
 * I think just printing output to stdout will be faster? Especially since no need to allocate mem etc.
-Dehui 10/08/2022
 '''
 
 AlPHABET = ['A', 'C', 'G', 'T']

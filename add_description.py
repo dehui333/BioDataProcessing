@@ -9,6 +9,16 @@ from pathlib import Path
 Add info to description of fasta/q sequences in the format of key=value.
 '''
 
+
+def append_KV_pair(seq_iter, key, value):
+    for record in seq_iter:
+        record.description =  args.key + '=' + args.value  + record.description[len(record.id):]
+        '''if record.description != record.id:
+            record.description = args.key + '=' + args.value + ' ' + record.description
+        else:
+            record.description = args.key + '=' + args.value'''
+        yield record
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Append a key value pair to the description of fasta/q sequences.')
     parser.add_argument('-i', '--input', type=str, help='Path to input reads.')
@@ -24,13 +34,7 @@ if __name__ == '__main__':
     if file_type in ['fq']:
         file_type = 'fastq'
 
-    records = list(SeqIO.parse(args.input, file_type))
-    for record in records: 
-        if record.description == record.id:
-            record.description = ''
-        record.description = args.key +'=' + args.value + ' ' + record.description
-
-    SeqIO.write(records, args.output, file_type)
+    SeqIO.write(append_KV_pair(SeqIO.parse(args.input, file_type), args.key, args.value), args.output, file_type)
     
     
         
