@@ -7,6 +7,8 @@ import pysam
 '''
 pysam pileup seems to be slow and mem usage seems to be high. Not sure if it's my problem or what.
 Process seems to get killed when the input size is large - mem use too high?
+
+------> should use check_alignment
 '''
 
 
