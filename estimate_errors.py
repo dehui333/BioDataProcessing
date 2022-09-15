@@ -6,6 +6,8 @@ from pathlib import Path
 import pysam
 import subprocess
 
+PREFIX = 'ESTIMATE_'
+
 '''
 Dependencies:
 
@@ -73,16 +75,17 @@ def estimate_error_bam(bam_path):
 Given a path to a read set (fasta/q) and a reference assembly, estimate error rate in read set.
 '''
 def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1): 
-    reads_dir = os.path.dirname(reads_path)
-    if reads_dir != '':
-        reads_dir += '/' 
-    sam_path =  reads_dir + Path(reads_path).stem + '_to_' + Path(reference_path).stem + '.sam'
+    #reads_dir = os.path.dirname(reads_path)
+    #if reads_dir != '':
+    #    reads_dir += '/' 
+    sam_path =  PREFIX + Path(reads_path).stem + '_to_' + Path(reference_path).stem + '.sam'
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
         with open(sam_path, 'w') as sam_file:
             subprocess.run(['minimap2', '-a', '--eqx', '-t', \
-                str(num_threads), reference_path, reads_path], stdout=sam_file, stderr=subprocess.DEVNULL)
-        
+                str(num_threads), reference_path, reads_path], stdout=sam_file)
+    else:
+        print(f'Has existing {sam_path}. Using existing one.')
     rates = estimate_error_bam(sam_path)
     if not keep_sam and not already_has_sam:
         subprocess.run(['rm', sam_path])

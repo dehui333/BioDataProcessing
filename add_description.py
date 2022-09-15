@@ -12,11 +12,7 @@ Add info to description of fasta/q sequences in the format of key=value.
 
 def append_KV_pair(seq_iter, key, value):
     for record in seq_iter:
-        record.description =  args.key + '=' + args.value  + record.description[len(record.id):]
-        '''if record.description != record.id:
-            record.description = args.key + '=' + args.value + ' ' + record.description
-        else:
-            record.description = args.key + '=' + args.value'''
+        record.description =  key + '=' + value  + record.description[len(record.id):]
         yield record
 
 if __name__ == '__main__':
@@ -37,4 +33,3 @@ if __name__ == '__main__':
     SeqIO.write(append_KV_pair(SeqIO.parse(args.input, file_type), args.key, args.value), args.output, file_type)
     
     
-        
