@@ -14,11 +14,6 @@ Outputs:
 In format of a list of (contig, start, end) tuples 
 '''
 
-'''
-* purge use of char form cigar 
-
-'''
-
 CIGAR_INT2CHAR = ['M', 'I', 'D', 'N', 'S', 'H', 'P', '=', 'X', 'B']
 CIGAR_CHAR2INT = {
     'M' : 0,

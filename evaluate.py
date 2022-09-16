@@ -41,8 +41,8 @@ def separate_reads_to_files(reads_path):
 
     out1 = args.kv[1] + '.' + file_type
     out2 = args.kv[2] + '.' + file_type
-    out1 = PREFIX + out1
-    out2 = PREFIX + out2
+    out1 = PREFIX + Path(reads_path).stem + '-' + out1
+    out2 = PREFIX + Path(reads_path).stem + '-' + out2
     if os.path.isfile(out1) and os.path.isfile(out2):
         print(f'{out1} or {out2} already exists. Using existing one.')
         return out1, out2
