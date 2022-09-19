@@ -68,7 +68,7 @@ def align_reads2ref(reads_path, ref_path):
     #if reads_dir != '':
     #    reads_dir += '/' 
     sam_path =  Path(reads_path).stem + '_to_' + Path(ref_path).stem + '.sam'
-    sam_path = PREFIX + sam_path
+    sam_path = sam_path
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
         with open(sam_path, 'w') as sam_file:

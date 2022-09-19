@@ -34,28 +34,34 @@ CODE_D = 2
 CODE_S = 4
 CODE_H = 5
 
-def corresponding_regions(bam_path, region, include_clipped):
+def corresponding_regions(bam_path, region, include_clipped, get_supp = False, get_supp_from_SA=False, supp_include_clipped=False):
     output = []
     
     bam = pysam.AlignmentFile(bam_path) 
     for record in bam.fetch(region[0]):
-        if record.is_secondary:
-            print('is secondary alignment!')
-            continue
-        if record.is_supplementary:
-            print('is supplementary alignment!')
-        supp_alignments = []
         if region[2] < record.reference_start or region[1] >= record.reference_end:
             continue
-        output.append(infer_corresponding_region(record.query_name, record.reference_start, record.reference_end,
-            record.is_reverse, record.cigartuples, region, include_clipped))
-        if record.has_tag('SA'):
+        if record.is_secondary:
+            continue
+
+        if record.is_supplementary:
+            if not get_supp:
+                continue
+            #print('is supplementary alignment!')
+            segment = infer_corresponding_region(record.query_name, record.reference_start, record.reference_end,
+                record.is_reverse, record.cigartuples, region, supp_include_clipped)
+        else:
+            segment = infer_corresponding_region(record.query_name, record.reference_start, record.reference_end,
+                record.is_reverse, record.cigartuples, region, include_clipped)
+        output.append(segment)
+        if get_supp and get_supp_from_SA and record.has_tag('SA'): # recover filtered supp alignments from SA tag
             supp_alignment_tups = parse_supp_string(record.get_tag('SA'))
             for _, ref_start, ref_end, is_rev, cigar_tuples, _, _ in supp_alignment_tups:
                 if region[2] < ref_start or region[1] >= ref_end:
                     continue
-                output.append(infer_corresponding_region(record.query_name, ref_start, ref_end,
-                    is_rev, cigar_tuples, region, False))
+                segment = infer_corresponding_region(record.query_name, ref_start, ref_end,
+                    is_rev, cigar_tuples, region, supp_include_clipped)
+                output.append(segment)
     return output
 
 def find_qpos_change(rpos_change, cigar_tuples):
@@ -159,7 +165,6 @@ def infer_corresponding_region(q_name, ref_start, ref_end, is_rev, cigar_tuples,
     if is_rev:
         rstart = q_len - end 
         rend = q_len - start
-        output.append((record.query_name, rstart, rend))
         return q_name, rstart, rend
     return q_name, start, end
 
@@ -172,7 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--bam', type=str, help='path of the bam.')
     args = parser.parse_args()
 
-    x = corresponding_regions(args.bam, ('3', 148609, 148610), True)
+    x = corresponding_regions(args.bam, ('1', 12000, 28000), True)
     print(x)
 
 

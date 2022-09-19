@@ -16,6 +16,7 @@ Do slicing and modifications of assembly.
 * An assembly with variations from the reference would have a lot of soft-clips/chimeric mappings 
 w.r.t. ref. Possibility of using these parts to fix HP lengths.
 * Merging diffs that are close together may be a thing worth having?
+*argparse - Should put required=True for inputs that are required.
 '''
 '''
 A namedtuple representing a difference between the assembly and reference.
@@ -285,7 +286,7 @@ def modify_assembly(contigs, diffs_assm2ref, r2assm, skip_mismatch=False, fix_HP
         if r2assm != None:
             diffs = get_diff_with_assm(r2assm, contig_name, str(record.seq), len(record), 20, 5, 0.4, True)
             if diffs[0][1] == TYPE_NONE:
-                print(contig_name + 'has no qualified reads aligned', sys.stderr)
+                print(contig_name + ' has no qualified reads aligned', file=sys.stderr)
                 continue
             if diffs[0][1] == TYPE_CLEAR:
                 diffs.clear() # no problem with this contig
