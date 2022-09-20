@@ -231,13 +231,16 @@ static PyObject *get_diff_with_assm_cpp(PyObject *self, PyObject *args)
 
     return result_list;
 }
-
+/*
+Should not just get positions which differ from ref. But get those that the most and second most frequent
+bases are close enough. (also filter away HP stuff)
+*/
 static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
 {
     const char *bam_path;
     const char *contig_name;
     const char *contig;
-    long contig_len; // There's some problem with these and ParseTuple if I try to use unsigned..
+    long contig_len; 
     long min_mapq;
     long min_coverage;
     double min_alt_prop;

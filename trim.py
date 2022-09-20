@@ -2,7 +2,7 @@
 
 import argparse
 from Bio import SeqIO
-from check_alignment import get_snp_pos, get_diff_with_assm
+from check_alignment import get_diff_with_assm
 from collections import namedtuple
 import os.path
 from pathlib import Path
@@ -17,6 +17,7 @@ Do slicing and modifications of assembly.
 w.r.t. ref. Possibility of using these parts to fix HP lengths.
 * Merging diffs that are close together may be a thing worth having?
 *argparse - Should put required=True for inputs that are required.
+* For assm to ref alignment, maybe need chunking
 '''
 '''
 A namedtuple representing a difference between the assembly and reference.
