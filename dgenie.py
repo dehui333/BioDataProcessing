@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from selenium.common.exceptions import ElementClickInterceptedException
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
@@ -34,14 +35,14 @@ def plot(port_number, target_path, query_path, output_dir, timeout_seconds):
     # wait object
     wait = WebDriverWait(driver, timeout_seconds)
 
-    print('[D-DEGENIES] Moving to run page...', file=sys.stderr)
+    print('[D-Genies] Moving to run page...', file=sys.stderr)
     
 
     # wait till page loads
     wait.until(EC.presence_of_element_located((By.ID, 'target')))
 
     
-    print('[D-DEGENIES] Filling in forms...', file=sys.stderr)
+    print('[D-Genies] Filling in forms...', file=sys.stderr)
 
     # fill in query path
     query_upload = driver.find_element(By.NAME, 'file-query')
@@ -55,7 +56,7 @@ def plot(port_number, target_path, query_path, output_dir, timeout_seconds):
     submit_button = driver.find_element(By.ID, 'submit')
     submit_button.click()
 
-    print('[D-DEGENIES] Waiting for plotting result...', file=sys.stderr)
+    print('[D-Genies] Waiting for plotting result...', file=sys.stderr)
     # wait for result and go to page
     result_link = wait.until(EC.element_to_be_clickable((By.LINK_TEXT, 'click here')))
     result_link.click()
@@ -63,15 +64,28 @@ def plot(port_number, target_path, query_path, output_dir, timeout_seconds):
     #wait
     wait.until(EC.presence_of_element_located((By.ID, 'export')))
 
-    print('[D-DEGENIES] Obtaining results...', file=sys.stderr)
+    print('[D-Genies] Obtaining results...', file=sys.stderr)
     # Select options
     select = Select(driver.find_element(By.XPATH, "//form[@id='export']/select[1]"))
     select.select_by_value('2')
     select.select_by_value('10')
     select.select_by_value('3')
     select.select_by_value('5')
-    select.select_by_value('6')
-    select.select_by_value('7')
+    try: 
+        select.select_by_value('6')
+    except ElementClickInterceptedException:
+        #print('[D-Genies] There is no unmatched queries.', file=sys.stderr)
+        pass
+    except:
+        print('[D-Genies] Something went wrong with retrieving unmatched queries.', file=sys.stderr)
+
+    try: 
+        select.select_by_value('7')
+    except ElementClickInterceptedException:
+        #print('[D-Genies] There is no unmatched targets.', file=sys.stderr)
+        pass
+    except:
+        print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
 
 
 if __name__ == '__main__':
