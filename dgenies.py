@@ -14,17 +14,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 import subprocess
 import sys
 
-
-def plot(port_number, target_path, query_path, output_dir, short_timeout, long_timeout, check_interval):
-
-    if os.path.isdir(output_dir):
-        print(f'{output_dir} already exists!', file=sys.stderr)
-        exit(1)
-
-    os.mkdir(output_dir)
-
-    dgenies_log_handle = open(output_dir+'/dgenies_log.txt', 'w')
+def startup(port_number, log_path):
+    dgenies_log_handle = open(log_path, 'w')
     dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stdout=dgenies_log_handle, stderr=dgenies_log_handle)
+    return dgenies_log_handle, dgenies_proc
+
+# separate open close browser from plotting?
+def plot(port_number, target_path, query_path, output_dir, short_timeout, long_timeout, check_interval):
 
     target_path = os.path.abspath(target_path)
     query_path = os.path.abspath(query_path)
@@ -93,7 +89,8 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
     if result_link == None:
         print('[D-Genies] Timeout while waiting for plotting result!', file=sys.stderr)
         dgenies_log_handle.close()
-        exit(1)
+        driver.close()
+        return
     result_link.click()
 
     #wait
@@ -122,8 +119,7 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
     except:
         print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
 
-    dgenies_proc.kill()
-    dgenies_log_handle.close()
+    driver.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot with D-GENIES.')
