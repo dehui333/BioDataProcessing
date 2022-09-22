@@ -3,7 +3,7 @@
 import argparse
 from Bio import SeqIO
 import configparser
-from dgenies import startup, plot
+from dgenies_plot import startup, plot
 from pathlib import Path
 import os
 import pysam
@@ -13,11 +13,10 @@ import sys
 import time
 
 '''
-To evaluate the quality of reads w.r.t. alignment to trimmed assembly.
-
-1. put reads from different strains into different files using info in the description.
-2. align each read set onto the trimmed assembly of that strain.
-3. calculate accuracy.
+Other dependencies:
+1. minimap2
+2. quast
+3. hifiasm
 '''
 # Return the haplotype number (1 or 2) by looking at the description of a sequence.
 def get_hap(description, key, tag1, tag2):
@@ -246,7 +245,7 @@ if __name__ == '__main__':
     log_handle, dgenies_proc = startup(port_number, dir_for_all + '/dgenies/log.txt')
 
     print('Plotting...', file=sys.stderr)
-    plot(
+    driver1 = plot(
         port_number,
         config['DEFAULT']['ref_path'],
         assembly_paths[0],
@@ -257,7 +256,7 @@ if __name__ == '__main__':
     )
 
     print('Plotting...', file=sys.stderr)
-    plot(
+    driver2 = plot(
         port_number,
         config['DEFAULT']['ref_path'],
         assembly_paths[1],
@@ -273,6 +272,9 @@ if __name__ == '__main__':
             break
         time.sleep(2)
         waiting_time += 2
-        
+    
+    driver1.close()
+    driver2.close()
     dgenies_proc.kill()
     log_handle.close()
+    subprocess.run(['rm', '-r', 'dgenies_temp'])

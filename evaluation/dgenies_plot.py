@@ -119,7 +119,7 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
     except:
         print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
 
-    driver.close()
+    return driver 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot with D-GENIES.')
