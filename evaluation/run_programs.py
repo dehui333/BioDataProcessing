@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import subprocess
+import sys
 
 
 '''
@@ -49,7 +50,7 @@ def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_path
         '-o' : output_prefix,
         '-t' : str(num_threads)
     }
-
+    print('Assembling with hifiasm...', file=sys.stderr)
     run('hifiasm', named_arguments, list_of_reads_paths)
     hap1_gfa = output_prefix + '.bp.hap1.p_ctg.gfa'
     hap2_gfa = output_prefix + '.bp.hap2.p_ctg.gfa'

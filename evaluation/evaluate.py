@@ -3,7 +3,7 @@
 import argparse
 from Bio import SeqIO
 import configparser
-from dgenies_plot import startup, plot
+from dgenies_plot import startup, plot_safe
 from pathlib import Path
 import os
 import pysam
@@ -13,10 +13,15 @@ import sys
 import time
 
 '''
-Other dependencies:
+Other dependencies(put in PATH):
 1. minimap2
 2. quast
 3. hifiasm
+
+
+
+***** Should try to handle exceptions etc more cleanly..
+
 '''
 # Return the haplotype number (1 or 2) by looking at the description of a sequence.
 def get_hap(description, key, tag1, tag2):
@@ -143,7 +148,6 @@ def evaluate_reads_quality(reads_path, ref1_path, ref2_path, key, tag1, tag2, nu
     print_basic_acc_stats(stats2, print_to_handle=print_to_handle)
 
 def assemble_hifiasm(path_to_reads, number_of_threads, output_prefix, reuse):
-    print('Assembling with hifiasm...', file=sys.stderr)
     return run_hifiasm_hetero_reads_only(output_prefix, number_of_threads, [path_to_reads], reuse)
 
 def evaluate_pomoxis(assm_paths, ref_path, output_prefixes, number_of_threads):
@@ -239,13 +243,13 @@ if __name__ == '__main__':
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
     )
-
+    
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
     log_handle, dgenies_proc = startup(port_number, dir_for_all + '/dgenies/log.txt')
 
     print('Plotting...', file=sys.stderr)
-    driver1 = plot(
+    driver1 = plot_safe(
         port_number,
         config['DEFAULT']['ref_path'],
         assembly_paths[0],
@@ -254,9 +258,8 @@ if __name__ == '__main__':
         600,
         30
     )
-
     print('Plotting...', file=sys.stderr)
-    driver2 = plot(
+    driver2 = plot_safe(
         port_number,
         config['DEFAULT']['ref_path'],
         assembly_paths[1],
@@ -272,6 +275,8 @@ if __name__ == '__main__':
             break
         time.sleep(2)
         waiting_time += 2
+    if len(os.listdir(dir_for_all + '/dgenies')) < 9:
+        print('Something wrong with downloading results!', file=sys.stderr)
     
     driver1.close()
     driver2.close()
