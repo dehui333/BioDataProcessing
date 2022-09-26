@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <assert.h>
 #include <Python.h>
 #include <iostream>
@@ -29,7 +30,6 @@ extern uint8_t min_mapping_quality_global;
 
 inline bool is_HP(const char *contig, std::uint32_t pos, std::uint32_t contig_len)
 {
-
     std::uint8_t i;
 
     bool hp = true;
@@ -43,14 +43,16 @@ inline bool is_HP(const char *contig, std::uint32_t pos, std::uint32_t contig_le
         for (i = 2; i <= 3; i++)
         {
             if (contig[pos + 1] != contig[pos + i])
+            {
                 hp = false;
+            }
         }
     }
     if (hp)
         return true;
 
     hp = true;
-    if (pos - 3 < 0)
+    if (pos < 3)
     {
         hp = false;
     }
@@ -59,7 +61,10 @@ inline bool is_HP(const char *contig, std::uint32_t pos, std::uint32_t contig_le
         for (i = 2; i <= 3; i++)
         {
             if (contig[pos - 1] != contig[pos - i])
+            {
+
                 hp = false;
+            }
         }
     }
     return hp;
@@ -232,29 +237,30 @@ static PyObject *get_diff_with_assm_cpp(PyObject *self, PyObject *args)
     return result_list;
 }
 /*
-Should not just get positions which differ from ref. But get those that the most and second most frequent
-bases are close enough. (also filter away HP stuff)
+I think shifting ins/del can lead to a position being included wrongly...
+* but im skipping indel anyway due to deletions leading to high counts as
+we are not counting the number of occurrences but number of positions.
 */
 static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
 {
     const char *bam_path;
     const char *contig_name;
     const char *contig;
-    long contig_len; 
+    long contig_len;
     long min_mapq;
     long min_coverage;
     double min_alt_prop;
     int skip_HP;
-    //bool skip_HP;
-    if (!PyArg_ParseTuple(args, "sssllldi", &bam_path, &contig_name, &contig,
-                          &contig_len, &min_mapq, &min_coverage, &min_alt_prop, &skip_HP))
+    int skip_indel;
+    // bool skip_HP;
+    if (!PyArg_ParseTuple(args, "sssllldii", &bam_path, &contig_name, &contig,
+                          &contig_len, &min_mapq, &min_coverage, &min_alt_prop, &skip_HP, &skip_indel))
         return NULL;
     auto bam = readBAM(bam_path);
     std::string contig_name_string{contig_name};
     auto pileup_iter = bam->pileup(contig_name_string + ":");
     min_mapping_quality_global = min_mapq;
     std::vector<std::uint32_t> positions;
-
     while (pileup_iter->has_next())
     {
         // std::cout << "BEFORE " << std::endl;
@@ -281,11 +287,11 @@ static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
         counts[G_INT] = 0;
         counts[T_INT] = 0;
         counts[N_INT] = 0;
-        char int2char[16] = {
+        /*char int2char[16] = {
             'X', 'A', 'C', 'X',
             'G', 'X', 'X', 'X',
             'T', 'X', 'X', 'X',
-            'X', 'X', 'X', 'N'};
+            'X', 'X', 'X', 'N'};*/
         while (column->has_next())
         {
             auto r = column->next();
@@ -294,7 +300,9 @@ static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
             if (r->is_del())
             {
                 // DELETION
-                num_del++;
+                //num_del++;
+                // del counted in number of occurrences, not number of bases now
+                // do nothing here to avoid repeat counting del segments.
             }
             else
             {
@@ -302,35 +310,50 @@ static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
                 auto ibase = r->ibase(0);
                 counts[ibase]++;
 
-                if (r->indel() > 0)
+                if (!skip_indel)
                 {
-                    num_ins++;
+                    if (r->indel() > 0)
+                    {
+                        num_ins++;
+                    }
+                    else if (r->indel() < 0)
+                    {
+                        num_del++;
+                    }
+                    
                 }
             }
         }
-
         assert(coverage == counts[A_INT] + counts[C_INT] + counts[G_INT] + counts[T_INT] + counts[N_INT] + num_del);
 
-        std::uint8_t idx[5] = {A_INT, C_INT, G_INT, T_INT, N_INT};
+        std::vector<std::uint16_t> all_counts;
+        all_counts.reserve(7);
+        all_counts.push_back(counts[A_INT]);
+        all_counts.push_back(counts[C_INT]);
+        all_counts.push_back(counts[G_INT]);
+        all_counts.push_back(counts[T_INT]);
+        all_counts.push_back(counts[N_INT]);
 
-        for (auto i = 0; i < 5; i++)
+        if (!skip_indel && (!skip_HP || !is_HP(contig, rpos, contig_len)))
         {
-            if (int2char[idx[i]] != contig[rpos] && (double) counts[idx[i]] / coverage >= min_alt_prop)
-            {
-                positions.push_back(rpos);
-                continue;
-            }
+            all_counts.push_back(num_del);
+            all_counts.push_back(num_ins);
         }
-        if ((double)num_del/coverage >= min_alt_prop || (double)num_ins/coverage >= min_alt_prop)
+        struct sort_struct
         {
-            if (!skip_HP || !is_HP(contig, rpos, contig_len))
+            bool operator()(std::uint16_t i, std::uint16_t j)
             {
-                positions.push_back(rpos);
-                continue;
+                return i > j;
             }
+        } descending;
+        std::sort(all_counts.begin(), all_counts.end(), descending);
+        std::uint32_t sum_counts = counts[A_INT] + counts[C_INT] + counts[G_INT] + counts[T_INT] + counts[N_INT] + num_del + num_ins;
+        if ((double)all_counts[1] / sum_counts > min_alt_prop)
+        {
+            positions.push_back(rpos);
         }
     }
-  
+
     PyObject *result_list = PyList_New(positions.size());
     for (std::uint32_t i = 0; i < positions.size(); i++)
     {
@@ -338,10 +361,9 @@ static PyObject *get_snp_pos_cpp(PyObject *self, PyObject *args)
     }
 
     return result_list;
-    
-   Py_RETURN_NONE;
-}
 
+    // Py_RETURN_NONE;
+}
 
 static PyMethodDef check_alignment_methods[] = {
     {"get_diff_with_assm", get_diff_with_assm_cpp, METH_VARARGS, "Return apparent disagreements between reads and assembly."},
