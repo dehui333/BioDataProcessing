@@ -21,10 +21,13 @@ dgenies_log_handle = None
 dgenies_proc = None
 driver = None
 
-def startup(port_number, log_path):
+def startup(port_number, log_path=None):
     global dgenies_log_handle, dgenies_proc
-    dgenies_log_handle = open(log_path, 'w')
-    dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stdout=dgenies_log_handle, stderr=dgenies_log_handle)
+    if log_path == None:
+        dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'])
+    else:
+        dgenies_log_handle = open(log_path, 'w')
+        dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stdout=dgenies_log_handle, stderr=dgenies_log_handle)
     return dgenies_log_handle, dgenies_proc
 
 
@@ -151,13 +154,28 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
         print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
     return driver 
 
+def wait_for_download(dir, num_files, time_length):
+    waiting_time = 0
+    while waiting_time < time_length:
+        if len(os.listdir(dir)) == num_files:
+            break
+        time.sleep(2)
+        waiting_time += 2
+    if len(os.listdir(dir)) < num_files:
+        print('Something wrong with downloading results!', file=sys.stderr)
+    
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plot with D-GENIES.')
     parser.add_argument('-i', '--query', type=str, help='Path to query fasta.')
     parser.add_argument('-r', '--target', type=str, help='Path to target fasta.')
+    # need to exist beforehand
     parser.add_argument('-o', '--output', type=str, help='Output directory.')
-
+    parser.add_argument('-p', '--port', type=str, help='Port number for dgenies.')
     args = parser.parse_args()
 
-
-    plot(5000, args.target, args.query, args.output, 3, 10, 2)
+    _, proc = startup(args.port)
+    web_driver = plot_safe(args.port, args.target, args.query, args.output, 3, 300, 10)
+    wait_for_download(args.output, 4, 10)
+    web_driver.close()
+    proc.kill()

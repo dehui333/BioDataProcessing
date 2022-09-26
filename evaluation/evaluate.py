@@ -3,7 +3,7 @@
 import argparse
 from Bio import SeqIO
 import configparser
-from dgenies_plot import startup, plot_safe
+from dgenies_plot import startup, plot_safe, wait_for_download
 from pathlib import Path
 import os
 import pysam
@@ -21,7 +21,7 @@ Other dependencies(put in PATH):
 
 
 ***** Should try to handle exceptions etc more cleanly..
-
+***** The evaluation on assemblies can be refactored and put together as an independent functionality
 '''
 # Return the haplotype number (1 or 2) by looking at the description of a sequence.
 def get_hap(description, key, tag1, tag2):
@@ -268,7 +268,7 @@ if __name__ == '__main__':
         600,
         30
     )
-
+    '''
     waiting_time = 0
     while waiting_time < 10:
         if len(os.listdir(dir_for_all + '/dgenies')) == 9:
@@ -277,7 +277,8 @@ if __name__ == '__main__':
         waiting_time += 2
     if len(os.listdir(dir_for_all + '/dgenies')) < 9:
         print('Something wrong with downloading results!', file=sys.stderr)
-    
+    '''
+    wait_for_download(dir_for_all + '/dgenies', 9, 10)
     driver1.close()
     driver2.close()
     dgenies_proc.kill()
