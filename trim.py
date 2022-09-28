@@ -11,7 +11,8 @@ import subprocess
 import sys
 
 '''
-Do slicing and modifications of assembly.
+Do slicing and modifications of assembly. Allows specification of the minimap2 binary to use 
+since the one found in PATH may not be of the intended version.
 
 * An assembly with variations from the reference would have a lot of soft-clips/chimeric mappings 
 w.r.t. ref. Possibility of using these parts to fix HP lengths.
@@ -312,17 +313,19 @@ def modify_assembly(contigs, diffs_assm2ref, r2assm, skip_mismatch=False, fix_HP
 '''
 returns sam_path
 '''
-def align_assm2ref(assm_path, ref_path, num_threads, force):
+def align_assm2ref(assm_path, ref_path, num_threads, force, path):
     #assm_dir = os.path.dirname(assm_path)
     #if assm_dir != '':
     #    assm_dir += '/' 
+    if path == None:
+        path = 'minimap2'
     sam_path =  'TRIM_'+ Path(assm_path).stem + '2' + Path(ref_path).stem + '.sam'
     if force:
         subprocess.run(['rm', sam_path])
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
         with open(sam_path, 'w') as sam_file:
-            subprocess.run(['minimap2', '-x', 'asm5', '--secondary=no', '-L', '-a', '--eqx', '-t', \
+            subprocess.run([path, '-x', 'asm5', '--secondary=no', '-L', '-a', '--eqx', '-t', \
                 str(num_threads), ref_path, assm_path], stdout=sam_file)
     else:
         print(sam_path + ' exists, using.', file=sys.stderr)
@@ -340,12 +343,13 @@ if __name__ == '__main__':
     #parser.add_argument('-o', '--output', type=str, help='path of the output assembly fasta.')
     parser.add_argument('-t', '--num_threads', type=str, help='number of threads to use.')
     parser.add_argument('-f', action='store_true', help='force creation of sam.')
+    parser.add_argument('-p', '--path', type=str, default=None, help='path of the minimap2 to be used.')
     args = parser.parse_args()
     contigs =  SeqIO.index(args.assm, 'fasta')
 
     diffs_assm2ref = None
     if args.ref != None:
-        assm2ref_sam_path = align_assm2ref(args.assm, args.ref, args.num_threads, args.f)
+        assm2ref_sam_path = align_assm2ref(args.assm, args.ref, args.num_threads, args.f, args.path)
         diffs_assm2ref = assm_ref_diff(assm2ref_sam_path, args.ref)
     modify_assembly(contigs, diffs_assm2ref, args.rd, skip_mismatch=True, fix_HP=True, ref_no_trim=True)
     

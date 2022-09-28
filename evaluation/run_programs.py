@@ -41,7 +41,7 @@ def run_xx():
     run(xx, paired_arguments, single_arguments)
 '''
 
-def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_paths, reuse):
+def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_paths, reuse, bin_path='hifiasm'):
     hap1_fasta = output_prefix + '.hap1.fasta'
     hap2_fasta = output_prefix + '.hap2.fasta'
     if reuse and os.path.isfile(hap1_fasta) and os.path.isfile(hap2_fasta):
@@ -51,7 +51,7 @@ def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_path
         '-t' : str(num_threads)
     }
     print('Assembling with hifiasm...', file=sys.stderr)
-    run('hifiasm', named_arguments, list_of_reads_paths)
+    run(bin_path, named_arguments, list_of_reads_paths)
     hap1_gfa = output_prefix + '.bp.hap1.p_ctg.gfa'
     hap2_gfa = output_prefix + '.bp.hap2.p_ctg.gfa'
     # awk '/^S/{print ">"$2;print $3}' test.p_ctg.gfa > test.p_ctg.fa

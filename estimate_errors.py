@@ -74,15 +74,17 @@ def estimate_error_bam(bam_path):
 '''
 Given a path to a read set (fasta/q) and a reference assembly, estimate error rate in read set.
 '''
-def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1): 
+def estimate_error_reads(reads_path, reference_path, keep_sam, num_threads=1, mapper_path): 
     #reads_dir = os.path.dirname(reads_path)
     #if reads_dir != '':
     #    reads_dir += '/' 
+    if mapper_path == None:
+        mapper_path = 'minimap2'
     sam_path =  PREFIX + Path(reads_path).stem + '_to_' + Path(reference_path).stem + '.sam'
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
         with open(sam_path, 'w') as sam_file:
-            subprocess.run(['minimap2', '-a', '--eqx', '-t', \
+            subprocess.run([mapper_path, '-a', '--eqx', '-t', \
                 str(num_threads), reference_path, reads_path], stdout=sam_file)
     else:
         print(f'Has existing {sam_path}. Using existing one.')
@@ -100,11 +102,12 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--num_threads', type=int, default=1, help='number of threads for mapping. [1]')
     parser.add_argument('-k', action='store_true', help='whether to keep sam created if input is fastx.')
     parser.add_argument('-b', action='store_true', help='Input is a sam/bam.')
+    parser.add_argument('-p', '--path', type=str, default=None, help='path of minimap2 binary.')
     args = parser.parse_args()
     if args.b == True:
         rates = estimate_error_bam(args.input)
     else:
-        rates = estimate_error_reads(args.input, args.ref, args.k, args.num_threads)
+        rates = estimate_error_reads(args.input, args.ref, args.k, args.num_threads, args.path)
     subs_rate, ins_rate, del_rate, Sc_rate, Hc_rate, unmapped_rate = rates
     print(f'substitution rate: {subs_rate * 100:.3}%')
     print(f'insertion rate: {ins_rate * 100:.3}%')
