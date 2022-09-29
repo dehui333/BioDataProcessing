@@ -8,5 +8,5 @@ conda install -y -c conda-forge selenium~=4.4.0
 conda install -y -c conda-forge firefox~=105.0
 conda install -y -c conda-forge geckodriver~=0.30.0
 
-init_path=$(python -c "import dgenies;print(dgenies.__file__)")
-cp dgenies-init.py $init_path
+config_path=$(python -c "import dgenies;print(dgenies.__file__[:-11] +'../etc/dgenies')")
+cp application.properties $config_path

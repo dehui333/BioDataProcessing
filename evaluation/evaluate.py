@@ -19,6 +19,9 @@ Other dependencies(put in PATH):
 3. hifiasm
 
 
+The config file for dgenies and the its minimap2 instance is at the {path of dgenies.__file__}/../etc/genies
+(to change thread number, max size of upload file etc)
+The directories need to be absolute path
 
 ***** Should try to handle exceptions etc more cleanly..
 ***** The evaluation on assemblies can be refactored and put together as an independent functionality
@@ -255,7 +258,7 @@ if __name__ == '__main__':
         assembly_paths[0],
         dir_for_all + '/dgenies',
         3,
-        600,
+        3600,
         30
     )
     print('Plotting...', file=sys.stderr)
@@ -265,7 +268,7 @@ if __name__ == '__main__':
         assembly_paths[1],
         dir_for_all + '/dgenies',
         3,
-        600,
+        3600,
         30
     )
     '''
@@ -283,4 +286,4 @@ if __name__ == '__main__':
     driver2.close()
     dgenies_proc.kill()
     log_handle.close()
-    subprocess.run(['rm', '-r', 'dgenies_temp'])
+    subprocess.run(['rm', '-r', str(Path.home()) + '/dgenies_temp'])

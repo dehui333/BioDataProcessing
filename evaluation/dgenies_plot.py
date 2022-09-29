@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from pathlib import Path
 from selenium.common.exceptions import ElementClickInterceptedException
 from selenium.common.exceptions import TimeoutException
 from selenium.common.exceptions import NoSuchElementException
@@ -16,6 +17,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 import subprocess
 import sys
 import time
+
+
+'''
+The config file for dgenies and the its minimap2 instance is at {dgenies.__file__}/../etc/dgenies
+(to change thread number, max size of upload file etc)
+The directories need to be absolute path
+'''
 
 dgenies_log_handle = None
 dgenies_proc = None
@@ -175,7 +183,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     _, proc = startup(args.port)
-    web_driver = plot_safe(args.port, args.target, args.query, args.output, 3, 300, 10)
+    web_driver = plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
     wait_for_download(args.output, 4, 10)
     web_driver.close()
     proc.kill()
+    subprocess.run(['rm', '-r', str(Path.home()) + '/dgenies_temp'])
