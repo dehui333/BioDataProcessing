@@ -39,6 +39,7 @@ def launch(mode="webserver", debug=False):
 
     UPLOAD_FOLDER = config_reader.upload_folder
     UPLOAD_FOLDER ='dgenies_temp'
+    config_reader.max_upload_file_size = 10000000000 # ~10G
     APP_DATA = config_reader.app_data
 
     app_title = "D-GENIES - Dotplot large Genomes in an Interactive, Efficient and Simple way"
