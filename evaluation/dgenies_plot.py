@@ -18,6 +18,7 @@ import subprocess
 import sys
 import time
 
+TEMP_DIR = str(Path.home()) + '/dgenies_temp'
 
 '''
 The config file for dgenies and the its minimap2 instance is at {dgenies.__file__}/../etc/dgenies
@@ -25,51 +26,17 @@ The config file for dgenies and the its minimap2 instance is at {dgenies.__file_
 The directories need to be absolute path
 '''
 
-dgenies_log_handle = None
-dgenies_proc = None
-driver = None
-
-def startup(port_number, log_path=None):
-    global dgenies_log_handle, dgenies_proc
-    if log_path == None:
+def startup(port_number, dgenies_log_handle=None):
+    if dgenies_log_handle == None:
         dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'])
     else:
-        dgenies_log_handle = open(log_path, 'w')
         dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stdout=dgenies_log_handle, stderr=dgenies_log_handle)
-    return dgenies_log_handle, dgenies_proc
+    return dgenies_proc
 
 
-def plot_safe(port_number, target_path, query_path, output_dir, short_timeout, long_timeout, check_interval):
-    global dgenies_log_handle, dgenies_proc, driver
-    try:
-        return plot(port_number, target_path, query_path, output_dir, short_timeout, long_timeout, check_interval)
-    except Exception as e:
-        print(e)
-        if dgenies_log_handle != None:
-            dgenies_log_handle.close()
-        if dgenies_proc != None:
-            dgenies_proc.kill()
-        if driver != None:
-            driver.close()
-        exit(1)
-    
 # separate open close browser from plotting?
-def plot(port_number, target_path, query_path, output_dir, short_timeout, long_timeout, check_interval):
-    global driver
-    target_path = os.path.abspath(target_path)
-    query_path = os.path.abspath(query_path)
-    output_dir = os.path.abspath(output_dir)
+def plot(driver, port_number, target_path, query_path, short_timeout, long_timeout, check_interval):
     
-    options = Options()
-    options.headless = True
-
-    options.set_preference('browser.download.folderList', 2) # custom location
-    options.set_preference('browser.download.manager.showWhenStarting', False)
-    options.set_preference('browser.download.dir', output_dir)
-    options.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/plain,image/png,text/html')
-
-    driver = webdriver.Firefox(options=options)
-
 
     driver.get(f'http://127.0.0.1:{port_number}/')
     
@@ -121,10 +88,7 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
             time_waited += check_interval
     
     if result_link == None:
-        print('[D-Genies] Timeout while waiting for plotting result!', file=sys.stderr)
-        dgenies_log_handle.close()
-        driver.close()
-        return
+        raise TimeoutException('[D-Genies] Timeout while waiting for plotting result!') 
     result_link.click()
 
     #wait
@@ -160,7 +124,6 @@ def plot(port_number, target_path, query_path, output_dir, short_timeout, long_t
         pass
     except:
         print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
-    return driver 
 
 def wait_for_download(dir, num_files, time_length):
     waiting_time = 0
@@ -172,8 +135,19 @@ def wait_for_download(dir, num_files, time_length):
     if len(os.listdir(dir)) < num_files:
         print('Something wrong with downloading results!', file=sys.stderr)
     
+def init_driver(output_dir):
+    options = Options()
+    options.headless = True
 
-if __name__ == '__main__':
+    options.set_preference('browser.download.folderList', 2) # custom location
+    options.set_preference('browser.download.manager.showWhenStarting', False)
+    options.set_preference('browser.download.dir', output_dir)
+    options.set_preference('browser.helperApps.neverAsk.saveToDisk', 'text/plain,image/png,text/html')
+
+    driver = webdriver.Firefox(options=options)
+    return driver
+
+def main():
     parser = argparse.ArgumentParser(description='Plot with D-GENIES.')
     parser.add_argument('-i', '--query', type=str, help='Path to query fasta.')
     parser.add_argument('-r', '--target', type=str, help='Path to target fasta.')
@@ -181,10 +155,24 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', type=str, help='Output directory.')
     parser.add_argument('-p', '--port', type=str, help='Port number for dgenies.')
     args = parser.parse_args()
+    target_path = os.path.abspath(args.target)
+    query_path = os.path.abspath(args.query)
+    output_dir = os.path.abspath(args.output)
+    
 
-    _, proc = startup(args.port)
-    web_driver = plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
-    wait_for_download(args.output, 4, 10)
-    web_driver.close()
-    proc.kill()
-    subprocess.run(['rm', '-r', str(Path.home()) + '/dgenies_temp'])
+    try:
+        proc = startup(args.port)
+        with init_driver(output_dir) as driver:
+            plot(driver, args.port, target_path, query_path, 3, 3600, 30)
+            #plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
+            wait_for_download(output_dir, 4, 10)
+    except Exception as e:
+        print(e, file=sys.stderr)
+    finally:
+        proc.kill()
+        
+    if os.path.isdir(TEMP_DIR):
+        subprocess.run(['rm', '-r', TEMP_DIR])
+
+if __name__ == '__main__':
+    main()
