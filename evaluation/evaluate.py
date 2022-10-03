@@ -3,18 +3,18 @@
 import argparse
 from Bio import SeqIO
 import configparser
-from dgenies_plot import startup, plot_safe, wait_for_download
+from dgenies_plot import startup, wait_for_download, init_driver, plot
 from pathlib import Path
 import os
 import pysam
-from run_programs import run_hifiasm_hetero_reads_only, run_pomoxis_assess_assm, run_quast
+from run_programs import run_hifiasm_hetero_reads_only, run_pomoxis_assess_assm, run_quast, run_minimap2_reads2ref
 import subprocess
 import sys
 import time
 
 '''
 Other dependencies(put in PATH):
-1. minimap2
+1. minimap2 (can specify in config file for evaluate.py)
 2. quast
 3. hifiasm
 
@@ -43,7 +43,7 @@ def get_hap(description, key, tag1, tag2):
 '''
 Separate reads into different files based on haplotype, return the file names.
 '''
-def separate_reads_to_files(reads_path, key, tag1, tag2):
+def separate_reads_to_files(reads_path, key, tag1, tag2, output_dir):
     file_type = Path(reads_path).suffix
     file_type = file_type[1:]
     if file_type in ['fq']:
@@ -51,10 +51,10 @@ def separate_reads_to_files(reads_path, key, tag1, tag2):
 
     out1 = tag1 + '.' + file_type
     out2 = tag2 + '.' + file_type
-    out1 = INTERMEDIATE_PREFIX + Path(reads_path).stem + '-' + out1
-    out2 = INTERMEDIATE_PREFIX + Path(reads_path).stem + '-' + out2
+    out1 = output_dir + '/' + Path(reads_path).stem + '-' + out1
+    out2 = output_dir + '/' + Path(reads_path).stem + '-' + out2
     if os.path.isfile(out1) and os.path.isfile(out2):
-        print(f'{out1} or {out2} already exists. Using existing one.', file=sys.stderr)
+        print(f'{out1} and {out2} already exists. Using existing ones.', file=sys.stderr)
         return out1, out2
     elif os.path.isfile(out1) or os.path.isfile(out2):
         print(f'One of {out1} and {out2} already exists!', file=sys.stderr)
@@ -73,12 +73,12 @@ def separate_reads_to_files(reads_path, key, tag1, tag2):
 '''
 Align reads to reference then return the path to the sam.
 maybe should move to run_programs.py
-'''
-def align_reads2ref(reads_path, ref_path, num_threads):
+
+def align_reads2ref(reads_path, ref_path, num_threads, output_dir):
     #reads_dir = os.path.dirname(reads_path)
     #if reads_dir != '':
     #    reads_dir += '/' 
-    sam_path =  INTERMEDIATE_PREFIX + Path(reads_path).stem + '_to_' + Path(ref_path).stem + '.sam'
+    sam_path =  output_dir + Path(reads_path).stem + '_to_' + Path(ref_path).stem + '.sam'
     sam_path = sam_path
     already_has_sam = os.path.exists(sam_path)
     if not already_has_sam:
@@ -88,7 +88,7 @@ def align_reads2ref(reads_path, ref_path, num_threads):
     else:
         print(sam_path + ' already exists! Using existing one.', file=sys.stderr)
     return sam_path
-        
+'''        
 def basic_acc_stats(bam_path):
     total_aligned_len = 0 # aligned parts (not clipped)
     total_mapped_len = 0 # total len of sequences with cigar
@@ -137,14 +137,16 @@ def print_basic_acc_stats(stats, print_to_handle):
     print(f'Percentage hardclipped: {total_H_clip/total_mapped_len * 100:.3}%', file=print_to_handle)
     print(f'Percentage unmapped: {num_unaligned/num_records * 100:.3}%', file=print_to_handle)
 
-def evaluate_reads_quality(reads_path, ref1_path, ref2_path, key, tag1, tag2, num_threads, print_to_handle=sys.stdout):
+def evaluate_reads_quality(reads_path, ref1_path, ref2_path, key, tag1, tag2, num_threads, intermediate_dir, print_to_handle=sys.stdout, minimap2_path='minimap2'):
     print('Separating reads...', file=sys.stderr)
-    reads1, reads2 = separate_reads_to_files(reads_path, key, tag1, tag2)
+    reads1, reads2 = separate_reads_to_files(reads_path, key, tag1, tag2, intermediate_dir)
     print('Aligning...', file=sys.stderr)
-    sam1 = align_reads2ref(reads1, ref1_path, num_threads)
-    sam2 = align_reads2ref(reads2, ref2_path, num_threads)
-    stats1 = basic_acc_stats(sam1)
-    stats2 = basic_acc_stats(sam2)
+    sam1_path =  intermediate_dir + '/' + Path(reads1).stem + '_to_' + Path(ref1_path).stem + '.sam'
+    sam2_path =  intermediate_dir + '/' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '.sam'
+    run_minimap2_reads2ref(reads1, ref1_path, num_threads, sam1_path, minimap2_path)
+    run_minimap2_reads2ref(reads2, ref2_path, num_threads, sam2_path, minimap2_path)
+    stats1 = basic_acc_stats(sam1_path)
+    stats2 = basic_acc_stats(sam2_path)
     print(f'For {tag1}:', file=print_to_handle)
     print_basic_acc_stats(stats1, print_to_handle=print_to_handle)
     print(f'For {tag2}:', file=print_to_handle)
@@ -166,8 +168,8 @@ def is_port_in_use(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(('localhost', port)) == 0
 
-if __name__ == '__main__':
-    # Parsing
+def main():
+     # Parsing
     parser = argparse.ArgumentParser(description='Evaluate the quality of diploid reads.')
     parser.add_argument('-c', '--config', type=str, help='Path to config file.')
     parser.add_argument('-r', action='store_true', help='Try to reuse existing files.')
@@ -188,10 +190,14 @@ if __name__ == '__main__':
 
     # outputs
     reads_quality_stats = dir_for_all + '/reads_quality.txt'
-    pomoxis_out1 = dir_for_all + '/pomoxis/assm1'
-    pomoxis_out2 = dir_for_all + '/pomoxis/assm2'
-
-
+    hifiasm_dir = dir_for_all + '/hifiasm'
+    pomoxis_dir = dir_for_all + '/pomoxis'
+    pomoxis_out1 = pomoxis_dir + '/assm1'
+    pomoxis_out2 = pomoxis_dir + '/assm2'
+    intermediate_dir = dir_for_all + '/intermediates'
+    dgenies_dir = dir_for_all + '/dgenies'
+    dgenies_log = dgenies_dir + '/log.txt'
+    quast_dir = dir_for_all + '/quast' # will be created by quast
     
     if not dir_for_all:
         print(f'Output directory not specified!', file=sys.stderr)
@@ -202,12 +208,11 @@ if __name__ == '__main__':
             exit(1)
     else:
         os.mkdir(dir_for_all)
-        global INTERMEDIATE_PREFIX
-        INTERMEDIATE_PREFIX = dir_for_all + '/intermediates/' 
-        os.mkdir(INTERMEDIATE_PREFIX)
-        os.mkdir(dir_for_all + '/pomoxis')
-        os.mkdir(dir_for_all + '/hifiasm')
-        os.mkdir(dir_for_all + '/dgenies')
+        os.mkdir(intermediate_dir)
+        os.mkdir(pomoxis_dir)
+        os.mkdir(hifiasm_dir)
+        os.mkdir(dgenies_dir)
+
     if not args.r or not os.path.isfile(reads_quality_stats):
         # Output reads quality stats
         with open(reads_quality_stats, 'w') as handle:
@@ -219,7 +224,9 @@ if __name__ == '__main__':
                 config['reads_quality']['tag1'],
                 config['reads_quality']['tag2'], 
                 config['DEFAULT']['num_threads'],
-                handle
+                intermediate_dir,
+                handle,
+                config['minimap2']['path']
             )
 
     # Assemble with hifiasm
@@ -227,7 +234,7 @@ if __name__ == '__main__':
     assembly_paths = list(assemble_hifiasm(
         config['DEFAULT']['reads_path'],
         config['DEFAULT']['num_threads'],
-        dir_for_all + '/hifiasm/assm',
+        hifiasm_dir + '/assm',
         args.r
     ))
     
@@ -241,7 +248,7 @@ if __name__ == '__main__':
 
     # evaluate assembly with quast
     evaluate_quast(
-        dir_for_all + '/quast',
+        quast_dir,
         assembly_paths,
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
@@ -249,41 +256,29 @@ if __name__ == '__main__':
     
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
-    log_handle, dgenies_proc = startup(port_number, dir_for_all + '/dgenies/log.txt')
+    
+    try:
+        with init_driver(dgenies_dir) as driver:
+            dgenies_proc = startup(port_number)
+            time.sleep(2)
+            print('Plotting...', file=sys.stderr)
+            plot(driver,
+                port_number,
+                config['DEFAULT']['ref_path'],
+                assembly_paths[0],
+                3, 3600, 30)
+            wait_for_download(dgenies_dir, 4, 10)
+            print('Plotting...', file=sys.stderr)
+            plot(driver,
+                port_number,
+                config['DEFAULT']['ref_path'],
+                assembly_paths[1],
+                3, 3600, 30)
+            wait_for_download(dgenies_dir, 8, 10)
+    except Exception as e:
+        print(e, file=sys.stderr)
+    finally:
+        dgenies_proc.kill()
 
-    print('Plotting...', file=sys.stderr)
-    driver1 = plot_safe(
-        port_number,
-        config['DEFAULT']['ref_path'],
-        assembly_paths[0],
-        dir_for_all + '/dgenies',
-        3,
-        3600,
-        30
-    )
-    print('Plotting...', file=sys.stderr)
-    driver2 = plot_safe(
-        port_number,
-        config['DEFAULT']['ref_path'],
-        assembly_paths[1],
-        dir_for_all + '/dgenies',
-        3,
-        3600,
-        30
-    )
-    '''
-    waiting_time = 0
-    while waiting_time < 10:
-        if len(os.listdir(dir_for_all + '/dgenies')) == 9:
-            break
-        time.sleep(2)
-        waiting_time += 2
-    if len(os.listdir(dir_for_all + '/dgenies')) < 9:
-        print('Something wrong with downloading results!', file=sys.stderr)
-    '''
-    wait_for_download(dir_for_all + '/dgenies', 9, 10)
-    driver1.close()
-    driver2.close()
-    dgenies_proc.kill()
-    log_handle.close()
-    subprocess.run(['rm', '-r', str(Path.home()) + '/dgenies_temp'])
+if __name__ == '__main__':
+   main()

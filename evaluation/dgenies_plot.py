@@ -18,7 +18,7 @@ import subprocess
 import sys
 import time
 
-TEMP_DIR = str(Path.home()) + '/dgenies_temp'
+TEMP_DIR = str(Path.home()) + '/dgenies_temp' # configured in dgenies config file
 
 '''
 The config file for dgenies and the its minimap2 instance is at {dgenies.__file__}/../etc/dgenies
@@ -30,13 +30,15 @@ def startup(port_number, dgenies_log_handle=None):
     if dgenies_log_handle == None:
         dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'])
     else:
-        dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stdout=dgenies_log_handle, stderr=dgenies_log_handle)
+        dgenies_proc = subprocess.Popen(['dgenies', 'run', '-m', 'standalone', '-p', str(port_number), '--no-browser'], stderr=dgenies_log_handle, stdout=dgenies_log_handle)
     return dgenies_proc
 
 
 # separate open close browser from plotting?
 def plot(driver, port_number, target_path, query_path, short_timeout, long_timeout, check_interval):
     
+    target_path = os.path.abspath(target_path)
+    query_path = os.path.abspath(query_path)
 
     driver.get(f'http://127.0.0.1:{port_number}/')
     
@@ -124,6 +126,9 @@ def plot(driver, port_number, target_path, query_path, short_timeout, long_timeo
         pass
     except:
         print('[D-Genies] Something went wrong with retrieving unmatched targets.', file=sys.stderr)
+    if os.path.isdir(TEMP_DIR):
+        #subprocess.run(['rm', '-r', TEMP_DIR])
+        print(f'Log file and intermediate files are at {TEMP_DIR}', file=sys.stderr)
 
 def wait_for_download(dir, num_files, time_length):
     waiting_time = 0
@@ -136,6 +141,7 @@ def wait_for_download(dir, num_files, time_length):
         print('Something wrong with downloading results!', file=sys.stderr)
     
 def init_driver(output_dir):
+    output_dir = os.path.abspath(output_dir)
     options = Options()
     options.headless = True
 
@@ -155,24 +161,21 @@ def main():
     parser.add_argument('-o', '--output', type=str, help='Output directory.')
     parser.add_argument('-p', '--port', type=str, help='Port number for dgenies.')
     args = parser.parse_args()
-    target_path = os.path.abspath(args.target)
-    query_path = os.path.abspath(args.query)
-    output_dir = os.path.abspath(args.output)
-    
 
     try:
         proc = startup(args.port)
-        with init_driver(output_dir) as driver:
-            plot(driver, args.port, target_path, query_path, 3, 3600, 30)
+        with init_driver(args.output) as driver:
+            time.sleep(2)
+            plot(driver, args.port, args.target, args.query, 3, 3600, 30)
             #plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
-            wait_for_download(output_dir, 4, 10)
+            wait_for_download(args.output, 4, 10)
     except Exception as e:
         print(e, file=sys.stderr)
     finally:
         proc.kill()
+
         
-    if os.path.isdir(TEMP_DIR):
-        subprocess.run(['rm', '-r', TEMP_DIR])
+
 
 if __name__ == '__main__':
     main()

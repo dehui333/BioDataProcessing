@@ -40,6 +40,15 @@ def run_xx():
 
     run(xx, paired_arguments, single_arguments)
 '''
+def run_minimap2_reads2ref(reads_path, ref_path, num_threads, output_path, minimap2_path='minimap2'):
+    if os.path.exists(output_path):
+        print(f'{output_path} already exists! Using existing.', file=sys.stderr)
+        return
+    with open(output_path, 'w') as sam_file:
+            subprocess.run([minimap2_path, '-a', '--eqx', '-t', \
+                str(num_threads), ref_path, reads_path], stdout=sam_file)
+    
+
 
 def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_paths, reuse, bin_path='hifiasm'):
     hap1_fasta = output_prefix + '.hap1.fasta'
