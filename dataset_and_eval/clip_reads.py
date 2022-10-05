@@ -1,6 +1,12 @@
 #!/usr/bin/env python
-import pysam
+
 import argparse
+import os.path
+from pathlib import Path
+import pysam
+from run_programs import run
+import sys
+
 
 '''
 Given a bam of reads aligned to a reference, output the reads that have the unaligned 
@@ -35,19 +41,41 @@ def clip_reads_fasta(sam_path):
             print('>' + query_name)
             print(aligned_segment)
 
+def align_reads_to_ref(reads_path, ref_path, out_path, minimap2_path, number_of_threads):
+    with open(out_path, 'w') as out_file:
+        arg_dict = {
+            '-t' : str(number_of_threads)
+        }
+        arg_list = [
+            '-a',
+            ref_path,
+            reads_path
+        ]
+        run(minimap2_path, arg_dict, arg_list, stdout=out_file)
+
 def main():
-    parser = argparse.ArgumentParser(description='Clip the query sequences in a bam and output them as fasta/q. '
+    parser = argparse.ArgumentParser(description='Clip the query sequences wrt to a reference and output them as fasta/q. '
      + 'They would be in the same relative strand as the alignment target. Unmapped, seconday and supplementary are skipped.')
-    parser.add_argument('-i', '--input', required=True, type=str, help='path of the input bam file.')
+    parser.add_argument('-i', '--input', required=True, type=str, help='path of the input fasta/q file.')
+    parser.add_argument('-r', '--ref', required=True, type=str, help='path of the reference.')
     parser.add_argument('-f', '--format', choices=['fasta', 'fastq'], required=True, type=str, help='Output format.')
+    parser.add_argument('-t', '--threads', type=int, default=1, help='number of threads to use for mapping.')
+    parser.add_argument('-p', '--path', type=str, default='minimap2', help='specific path to minimap2 binary.')
     args = parser.parse_args()
-    input_sam = args.input
+    reads_path = args.input
     output_format = args.format
+    ref_path = args.ref
+    mm2_path = args.path
+    sam_path = Path(reads_path).stem + '_to_' + Path(ref_path).stem + '.sam'
+    if os.path.isfile(sam_path):
+        print(f'{sam_path} already exists!', file=sys.stderr)
+        exit(1)
+    align_reads_to_ref(reads_path, ref_path, sam_path, mm2_path, args.threads)
 
     if output_format == 'fasta':
-        clip_reads_fasta(input_sam)
+        clip_reads_fasta(sam_path)
     elif output_format == 'fastq':
-        clip_reads_fastq(input_sam)
+        clip_reads_fastq(sam_path)
     else:
         raise ValueError(f'Unexpected output format - {output_format}!')
 

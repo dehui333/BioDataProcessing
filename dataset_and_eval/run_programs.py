@@ -8,9 +8,11 @@ import sys
 Helper functions to help run programs with the python subprocess module.
 program - program filename. Expected to be in PATH.
 arguments - a dictionary where the key value pairs define the arguments and options.
+
+stdout and stderr are file handles
 '''
 
-def run(program, paired_arguments, single_arguments, redirect_stdout=None):
+def run(program, paired_arguments, single_arguments, stdout=None, stderr=None):
     ls = [program]
     if paired_arguments != None:
         for key, value in paired_arguments.items():
@@ -20,12 +22,7 @@ def run(program, paired_arguments, single_arguments, redirect_stdout=None):
     if single_arguments != None:
         for argument in single_arguments:
             ls.append(argument)
-    if redirect_stdout:
-        with open(redirect_stdout, 'w') as handle:
-            subprocess.run(ls, stdout=handle)
-    else:
-        subprocess.run(ls)
-
+    subprocess.run(ls, stdout=stdout, stderr=stderr)
 '''
 Template:
 def run_xx():
@@ -40,6 +37,7 @@ def run_xx():
 
     run(xx, paired_arguments, single_arguments)
 '''
+
 def run_minimap2_reads2ref(reads_path, ref_path, num_threads, output_path, minimap2_path='minimap2'):
     if os.path.exists(output_path):
         print(f'{output_path} already exists! Using existing.', file=sys.stderr)
@@ -47,8 +45,6 @@ def run_minimap2_reads2ref(reads_path, ref_path, num_threads, output_path, minim
     with open(output_path, 'w') as sam_file:
             subprocess.run([minimap2_path, '-a', '--eqx', '-t', \
                 str(num_threads), ref_path, reads_path], stdout=sam_file)
-    
-
 
 def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_paths, reuse, bin_path='hifiasm'):
     hap1_fasta = output_prefix + '.hap1.fasta'
@@ -89,5 +85,3 @@ def run_quast(output_dir, assm_paths, ref_path, num_threads):
 
     run('quast.py', named_arguments, assm_paths)
 
-if __name__ == '__main__':
-    run_pomoxis_assess_assm('test.asm.hap1.fasta', 'data/references/S288C_reference.fasta', 20)
