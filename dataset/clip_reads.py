@@ -10,8 +10,11 @@ The output reads will be in the same relative strand as the alignment target.
 def clip_reads_fastq(sam_path):
     with pysam.AlignmentFile(sam_path, "r") as samfile:
         for record in samfile.fetch():
-            # should not have unmapped here
-            if record.is_secondary or record.is_supplementary:
+            if record.query_name == '927fcbe8-7891-42f8-b0d1-ac9a17b13793_2':
+                print('HERE')
+                print(record.is_unmapped)
+            # without index will use until_eof=True, so will have unmapped
+            if record.is_unmapped or record.is_secondary or record.is_supplementary:
                 continue
             
             query_name = record.query_name
@@ -27,7 +30,7 @@ def clip_reads_fasta(sam_path):
     with pysam.AlignmentFile(sam_path, "r") as samfile:
         for record in samfile.fetch():
             # should not have unmapped here
-            if record.is_secondary or record.is_supplementary:
+            if record.is_unmapped or record.is_secondary or record.is_supplementary:
                 continue
             
             query_name = record.query_name
