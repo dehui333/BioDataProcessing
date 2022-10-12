@@ -56,22 +56,11 @@ def align_reads_to_ref(reads_path, ref_path, out_path, minimap2_path, number_of_
 def main():
     parser = argparse.ArgumentParser(description='Clip the query sequences wrt to a reference and output them as fasta/q. '
      + 'They would be in the same relative strand as the alignment target. Unmapped, seconday and supplementary are skipped.')
-    parser.add_argument('-i', '--input', required=True, type=str, help='path of the input fasta/q file.')
-    parser.add_argument('-r', '--ref', required=True, type=str, help='path of the reference.')
+    parser.add_argument('-i', '--input', required=True, type=str, help='path of the input alignment file.')
     parser.add_argument('-f', '--format', choices=['fasta', 'fastq'], required=True, type=str, help='Output format.')
-    parser.add_argument('-t', '--threads', type=int, default=1, help='number of threads to use for mapping.')
-    parser.add_argument('-p', '--path', type=str, default='minimap2', help='specific path to minimap2 binary.')
     args = parser.parse_args()
-    reads_path = args.input
+    sam_path = args.input
     output_format = args.format
-    ref_path = args.ref
-    mm2_path = args.path
-    sam_path = Path(reads_path).stem + '_to_' + Path(ref_path).stem + '.sam'
-    if os.path.isfile(sam_path):
-        print(f'{sam_path} already exists!', file=sys.stderr)
-        exit(1)
-    align_reads_to_ref(reads_path, ref_path, sam_path, mm2_path, args.threads)
-
     if output_format == 'fasta':
         clip_reads_fasta(sam_path)
     elif output_format == 'fastq':
