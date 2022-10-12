@@ -18,6 +18,9 @@ import subprocess
 import sys
 import time
 
+from dgenies import __file__
+
+
 TEMP_DIR = str(Path.home()) + '/dgenies_temp' # configured in dgenies config file
 
 '''
@@ -36,7 +39,6 @@ def startup(port_number, dgenies_log_handle=None):
 
 # separate open close browser from plotting?
 def plot(driver, port_number, target_path, query_path, short_timeout, long_timeout, check_interval):
-    
     target_path = os.path.abspath(target_path)
     query_path = os.path.abspath(query_path)
 
@@ -118,7 +120,6 @@ def plot(driver, port_number, target_path, query_path, short_timeout, long_timeo
         pass
     except:
         print('[D-Genies] Something went wrong with retrieving unmatched queries.', file=sys.stderr)
-
     try: 
         select.select_by_value('7')
     except ElementClickInterceptedException:
@@ -129,7 +130,7 @@ def plot(driver, port_number, target_path, query_path, short_timeout, long_timeo
     if os.path.isdir(TEMP_DIR):
         #subprocess.run(['rm', '-r', TEMP_DIR])
         print(f'Log file and intermediate files are at {TEMP_DIR}', file=sys.stderr)
-
+'''
 def wait_for_download(dir, num_files, time_length):
     waiting_time = 0
     while waiting_time < time_length:
@@ -139,7 +140,7 @@ def wait_for_download(dir, num_files, time_length):
         waiting_time += 2
     if len(os.listdir(dir)) < num_files:
         print('Something wrong with downloading results!', file=sys.stderr)
-    
+'''
 def init_driver(output_dir):
     output_dir = os.path.abspath(output_dir)
     options = Options()
@@ -155,20 +156,24 @@ def init_driver(output_dir):
 
 def main():
     parser = argparse.ArgumentParser(description='Plot with D-GENIES.')
-    parser.add_argument('-i', '--query', type=str, help='Path to query fasta.')
-    parser.add_argument('-r', '--target', type=str, help='Path to target fasta.')
+    parser.add_argument('-i', '--query', type=str, required=True, help='Path to query fasta.')
+    parser.add_argument('-r', '--target', type=str, required=True, help='Path to target fasta.')
     # need to exist beforehand
-    parser.add_argument('-o', '--output', type=str, help='Output directory.')
-    parser.add_argument('-p', '--port', type=str, help='Port number for dgenies.')
+    parser.add_argument('-o', '--output', type=str, required=True, help='Output directory.')
+    parser.add_argument('-p', '--port', type=str, required=True, help='Port number for dgenies.')
+    parser.add_argument('-t', '--timeout', type=int, required=True, help='Number of hours to wait for plotting.')
     args = parser.parse_args()
+    print(f'Please find configuration file for dgenies at {str(__file__)[:-11]}../etc/dgenies')
 
+    timeout=args.timeout * 3600
     try:
         proc = startup(args.port)
         with init_driver(args.output) as driver:
             time.sleep(2)
-            plot(driver, args.port, args.target, args.query, 3, 3600, 30)
+            plot(driver, args.port, args.target, args.query, 3, timeout, 30)
             #plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
-            wait_for_download(args.output, 4, 10)
+            #wait_for_download(args.output, num_expected_file, 5)
+            time.sleep(20)
     except Exception as e:
         print(e, file=sys.stderr)
     finally:
