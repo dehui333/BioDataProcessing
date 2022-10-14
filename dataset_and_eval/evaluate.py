@@ -3,7 +3,7 @@
 import argparse
 from Bio import SeqIO
 import configparser
-from dgenies_plot import startup, wait_for_download, init_driver, plot
+from dgenies_plot import startup, init_driver, plot
 from haplotype_info import separate_reads_to_files
 from pathlib import Path
 import os
