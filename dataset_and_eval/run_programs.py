@@ -60,8 +60,9 @@ def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_path
     hap1_gfa = output_prefix + '.bp.hap1.p_ctg.gfa'
     hap2_gfa = output_prefix + '.bp.hap2.p_ctg.gfa'
     # awk '/^S/{print ">"$2;print $3}' test.p_ctg.gfa > test.p_ctg.fa
-    run('awk', None, ['/^S/{print ">"$2;print $3}', hap1_gfa], hap1_fasta)
-    run('awk', None, ['/^S/{print ">"$2;print $3}', hap2_gfa], hap2_fasta)
+    with open(hap1_fasta, 'w') as hap1_fasta_handle, open(hap2_fasta, 'w') as hap2_fasta_handle:
+        run('awk', None, ['/^S/{print ">"$2;print $3}', hap1_gfa], stdout=hap1_fasta_handle)
+        run('awk', None, ['/^S/{print ">"$2;print $3}', hap2_gfa], stdout=hap2_fasta_handle)
     return hap1_fasta, hap2_fasta
 
 def run_pomoxis_assess_assm(assm_path, ref_path, num_threads, output_prefix='assm'):
