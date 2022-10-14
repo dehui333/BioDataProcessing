@@ -215,7 +215,7 @@ def main():
                 assembly_paths[1],
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
-            time.sleep(20)
+            time.sleep(60)
     except Exception as e:
         print(e, file=sys.stderr)
     finally:

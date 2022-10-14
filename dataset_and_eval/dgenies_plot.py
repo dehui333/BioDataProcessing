@@ -173,7 +173,7 @@ def main():
             plot(driver, args.port, args.target, args.query, 3, timeout, 30)
             #plot_safe(args.port, args.target, args.query, args.output, 3, 3600, 30)
             #wait_for_download(args.output, num_expected_file, 5)
-            time.sleep(20)
+            time.sleep(60) # maybe should wait different duration depending on size of input...
     except Exception as e:
         print(e, file=sys.stderr)
     finally:
