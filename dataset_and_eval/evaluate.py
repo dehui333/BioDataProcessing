@@ -89,7 +89,7 @@ def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_t
     stats2 = basic_acc_stats(sam2_path)
     print(f'For {name1}:', file=print_to_handle)
     print_basic_acc_stats(stats1, print_to_handle=print_to_handle)
-    print(f'For {name1}:', file=print_to_handle)
+    print(f'For {name2}:', file=print_to_handle)
     print_basic_acc_stats(stats2, print_to_handle=print_to_handle)
 
 def assemble_hifiasm(path_to_reads, number_of_threads, output_prefix, reuse):
@@ -195,7 +195,7 @@ def main():
     
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
-    timeout = config['dgenies']['timeout'] * 3600
+    timeout = int(config['dgenies']['timeout']) * 3600
     try:
         with init_driver(dgenies_dir) as driver:
             dgenies_proc = startup(port_number)
