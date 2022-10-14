@@ -207,7 +207,7 @@ def main():
                 assembly_paths[0],
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1, 30)
-            time.sleep(20)
+            time.sleep(60)
             print('Plotting...', file=sys.stderr)
             plot(driver,
                 port_number,
