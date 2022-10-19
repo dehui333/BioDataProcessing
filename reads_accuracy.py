@@ -29,8 +29,7 @@ def get_error_rates(seq_file_path, truth_dict, upper_bound, logfile_handle, prin
             error_rates.append(error_rate)
         else:
             num_above+=1
-            print(record.id, file=logfile_handle)
-            print(error_rate, file=logfile_handle)
+            print(record.id, error_rate, file=logfile_handle)
             if print_alignment:
                 nice_alignment = edlib.getNiceAlignment(result_dict, query_string, truth_string)
                 target = nice_alignment['target_aligned']
@@ -41,8 +40,8 @@ def get_error_rates(seq_file_path, truth_dict, upper_bound, logfile_handle, prin
                     print(middle[i:i+100], file=logfile_handle)
                     print(query[i:i+100], file=logfile_handle)
                     print(file=logfile_handle)
-    print(num_above, ' above upper bound', file=logfile_handle)
-    print(num_unmapped, ' unmapped', file=logfile_handle)
+    print('num above upper bound' , num_above, file=logfile_handle)
+    print('num unmapped', num_unmapped, file=logfile_handle)
     return error_rates
 
 def get_seq_file_type(seq_file_path):
@@ -63,6 +62,7 @@ def main():
     parser.add_argument('-i', '--reads', type=str, required=True, help='Path to input reads.')
     parser.add_argument('-r', '--truth', type=str, required=True, help='Path to ground-truth reads.')
     parser.add_argument('-u', '--upper', type=float, required=True, help='The upper bound percentage of error. Those above will not be plotted in histogram.')
+    parser.add_argument('-b', '--bin', type=float, required=True, help='The bin size in percentages.')
     parser.add_argument('-o', '--output', type=str, required=True, help='Output path for histogram.')
     parser.add_argument('-p', '--print', action='store_true', help='Print alignments that have higher than upper bound error rate to stdout.')
     args = parser.parse_args()
@@ -73,7 +73,7 @@ def main():
     truth_dict = SeqIO.index(truth_path, get_seq_file_type(truth_path))
     # in percentages
     error_rates = get_error_rates(reads_path, truth_dict, error_upper_bound, sys.stdout, args.print)
-    plot_histogram(error_rates, 0, error_upper_bound, 0.1, out_path)
+    plot_histogram(error_rates, 0, error_upper_bound, args.bin, out_path)
     
 if __name__ == '__main__':
     main()
