@@ -54,12 +54,12 @@ def plot_histogram(values, range_start, range_end, bin_size, output_path):
     plt.clf()
 
 def main():
-    parser = argparse.ArgumentParser(description='Evaluate reads accuracy w.r.t. a set of ground-truth. Besides a histogram, a log file is also produced and goes to stdout.')
+    parser = argparse.ArgumentParser(description='Evaluate reads accuracy w.r.t. a set of ground-truth.')
     parser.add_argument('-i', '--reads', type=str, required=True, help='Path to input reads.')
     parser.add_argument('-r', '--truth', type=str, required=True, help='Path to ground-truth reads.')
     parser.add_argument('-u', '--upper', type=float, required=True, help='The upper bound percentage of error. Those above will not be plotted in histogram.')
     parser.add_argument('-o', '--output', type=str, required=True, help='Output path for histogram.')
-    parser.add_argument('-p', '--print', action='store_true', help='Print alignments that have higher than upper bound error rate in log file.')
+    parser.add_argument('-p', '--print', action='store_true', help='Print alignments that have higher than upper bound error rate to stdout.')
     args = parser.parse_args()
     reads_path = args.reads
     truth_path = args.truth
