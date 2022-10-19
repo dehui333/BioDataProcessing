@@ -67,7 +67,7 @@ def main():
     error_upper_bound = args.upper
     truth_dict = SeqIO.index(truth_path, get_seq_file_type(truth_path))
     # in percentages
-    error_rates = get_error_rates(reads_path, truth_dict, error_upper_bound, sys.stdout)
+    error_rates = get_error_rates(reads_path, truth_dict, error_upper_bound, sys.stdout, args.print)
     plot_histogram(error_rates, 0, error_upper_bound, 0.1, out_path)
     
 if __name__ == '__main__':
