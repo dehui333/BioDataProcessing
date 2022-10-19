@@ -11,11 +11,15 @@ import sys
 
 def get_error_rates(seq_file_path, truth_dict, upper_bound, logfile_handle, print_alignment=False):
     num_above = 0
+    num_unmapped = 0
     error_rates = []
     task = 'distance'
     if print_alignment:
         task = 'path'
     for record in SeqIO.parse(seq_file_path, get_seq_file_type(seq_file_path)):
+        if record.id not in truth_dict:
+            num_unmapped += 1
+            continue
         query_string = str(record.seq)
         truth_string = str(truth_dict[record.id].seq)
         result_dict = edlib.align(str(record.seq), truth_string, task=task)
@@ -38,6 +42,7 @@ def get_error_rates(seq_file_path, truth_dict, upper_bound, logfile_handle, prin
                     print(query[i:i+100], file=logfile_handle)
                     print(file=logfile_handle)
     print(num_above, ' above upper bound', file=logfile_handle)
+    print(num_unmapped, ' unmapped', file=logfile_handle)
     return error_rates
 
 def get_seq_file_type(seq_file_path):
