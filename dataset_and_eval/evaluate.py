@@ -13,7 +13,7 @@ import subprocess
 import sys
 import time
 import matplotlib.pyplot as plt
-from reads_accuracy_from_sam import estimate_error_bam, plot_histogram
+from reads_accuracy_from_sam import estimate_error_bam_both, plot_histogram
 
 
 '''
@@ -31,7 +31,7 @@ The directories need to be absolute path
 ***** The evaluation on assemblies can be refactored and put together as an independent functionality
 '''
 
-  
+'''
 def basic_acc_stats(bam_path):
     total_aligned_len = 0 # aligned parts (not clipped)
     total_mapped_len = 0 # total len of sequences with cigar
@@ -83,8 +83,8 @@ def print_basic_acc_stats(stats, print_to_handle):
     print(f'Percentage softclipped: {total_S_clip/total_mapped_len * 100:.3}%', file=print_to_handle)
     print(f'Percentage hardclipped: {total_H_clip/total_mapped_len * 100:.3}%', file=print_to_handle)
     print(f'Percentage unmapped: {num_unaligned/num_records * 100:.3}%', file=print_to_handle)
-
-def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_threads, intermediate_dir, print_to_handle=sys.stdout, minimap2_path='minimap2', count_clip=True, upper_bound=100, bin_size=1):
+'''
+def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_threads, intermediate_dir, print_to_handle, print_to_handle_count_clip, minimap2_path='minimap2', upper_bound=100, bin_size=1):
     print('Separating reads...', file=sys.stderr)
     reads1, reads2 = separate_reads_to_files(reads_path, name1, name2, intermediate_dir)
     print('Aligning...', file=sys.stderr)
@@ -92,14 +92,26 @@ def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_t
     sam2_path =  intermediate_dir + '/' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '.sam'
     run_minimap2_reads2ref(reads1, ref1_path, num_threads, sam1_path, minimap2_path)
     run_minimap2_reads2ref(reads2, ref2_path, num_threads, sam2_path, minimap2_path)
+    
     print(name1, file=print_to_handle)
-    error_rates1 = estimate_error_bam(sam1_path, count_clip, upper_bound, print_to_handle)
+    print(name1, file=print_to_handle_count_clip)    
+    error_rates1_no_count_clip, error_rates1_count_clip = estimate_error_bam_both(sam1_path, upper_bound, print_to_handle, print_to_handle_count_clip)
     print(name2, file=print_to_handle)
-    error_rates2 = estimate_error_bam(sam2_path, count_clip, upper_bound, print_to_handle)
-    histogram_path1 = intermediate_dir + '/../' + Path(reads1).stem + '_to_' + Path(ref1_path).stem + '.png'
-    histogram_path2 = intermediate_dir + '/../' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '.png'
-    plot_histogram(error_rates1, 0, upper_bound, bin_size, histogram_path1)
-    plot_histogram(error_rates2, 0, upper_bound, bin_size, histogram_path2)
+    print(name2, file=print_to_handle_count_clip)
+    error_rates2_no_count_clip, error_rates2_count_clip = estimate_error_bam_both(sam2_path, upper_bound, print_to_handle, print_to_handle_count_clip)
+    
+    histogram_path1_count_clip = intermediate_dir + '/../' + Path(reads1).stem + '_to_' + Path(ref1_path).stem + '_count-clip.png'
+    histogram_path1_no_count_clip = intermediate_dir + '/../' + Path(reads1).stem + '_to_' + Path(ref1_path).stem + '_no-count-clip.png'
+    plot_histogram(error_rates1_count_clip, 0, upper_bound, bin_size, histogram_path1_count_clip)
+    plot_histogram(error_rates1_no_count_clip, 0, upper_bound, bin_size, histogram_path1_no_count_clip)
+    
+   
+    histogram_path2_count_clip = intermediate_dir + '/../' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '_count-clip.png'
+    histogram_path2_no_count_clip = intermediate_dir + '/../' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '_no-count-clip.png'
+    plot_histogram(error_rates2_count_clip, 0, upper_bound, bin_size, histogram_path2_count_clip)
+    plot_histogram(error_rates2_no_count_clip, 0, upper_bound, bin_size, histogram_path2_no_count_clip)
+    
+    
     
     
 def assemble_hifiasm(path_to_reads, number_of_threads, output_prefix, reuse):
@@ -140,6 +152,7 @@ def main():
 
     # outputs
     reads_quality_logs = dir_for_all + '/above_upper_bound.txt'
+    reads_quality_logs_count_clip = dir_for_all + '/above_upper_bound_count_clip.txt'
     hifiasm_dir = dir_for_all + '/hifiasm'
     pomoxis_dir = dir_for_all + '/pomoxis'
     pomoxis_out1 = pomoxis_dir + '/assm1'
@@ -165,7 +178,7 @@ def main():
 
     if not args.r or not os.path.isfile(reads_quality_stats):
         # Output reads quality stats
-        with open(reads_quality_logs, 'w') as handle:
+        with open(reads_quality_logs, 'w') as handle, open(reads_quality_logs_count_clip, 'w') as handle_count_clip:
             evaluate_reads_quality(
                 config['DEFAULT']['reads_path'],
                 config['reads_quality']['ref1_path'],
@@ -175,8 +188,8 @@ def main():
                 config['DEFAULT']['num_threads'],
                 intermediate_dir,
                 handle,
+                handle_count_clip,
                 config['minimap2']['path'],
-                config['reads_quality'].getboolean('count_clip'),
                 float(config['reads_quality']['upper_bound']),
                 int(config['reads_quality']['bin_size'])
             )
