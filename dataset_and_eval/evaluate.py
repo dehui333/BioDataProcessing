@@ -12,6 +12,9 @@ from run_programs import run_hifiasm_hetero_reads_only, run_pomoxis_assess_assm,
 import subprocess
 import sys
 import time
+import matplotlib.pyplot as plt
+from reads_accuracy_from_sam import estimate_error_bam, plot_histogram
+
 
 '''
 Other dependencies(put in PATH):
@@ -40,6 +43,7 @@ def basic_acc_stats(bam_path):
     bam = pysam.AlignmentFile(bam_path) 
     num_records = 0 # exclude secondary/supplementary
     num_unaligned = 0
+    error_rates = []
     for alignment in bam.fetch(until_eof=True):
         if alignment.is_secondary or alignment.is_supplementary:
             continue
@@ -56,9 +60,12 @@ def basic_acc_stats(bam_path):
         total_H_clip += counts[5]
         total_mapped_len += alignment.infer_read_length()
         total_aligned_len += alignment.query_alignment_length
-        
+
+        #error_rate = (counts[8] + counts[1] + counts[2])/alignment.query_alignment_length
+        #error_rates.append(error_rate)
+
     bam.close()
-    return total_mismatch, total_ins, total_del, total_S_clip, total_H_clip, total_aligned_len, total_mapped_len, num_unaligned, num_records
+    return total_mismatch, total_ins, total_del, total_S_clip, total_H_clip, total_aligned_len, total_mapped_len, num_unaligned, num_records#, error_rates
 
 def print_basic_acc_stats(stats, print_to_handle):
     total_mismatch = stats[0]
@@ -77,7 +84,7 @@ def print_basic_acc_stats(stats, print_to_handle):
     print(f'Percentage hardclipped: {total_H_clip/total_mapped_len * 100:.3}%', file=print_to_handle)
     print(f'Percentage unmapped: {num_unaligned/num_records * 100:.3}%', file=print_to_handle)
 
-def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_threads, intermediate_dir, print_to_handle=sys.stdout, minimap2_path='minimap2'):
+def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_threads, intermediate_dir, print_to_handle=sys.stdout, minimap2_path='minimap2', count_clip=True, upper_bound=100, bin_size=1):
     print('Separating reads...', file=sys.stderr)
     reads1, reads2 = separate_reads_to_files(reads_path, name1, name2, intermediate_dir)
     print('Aligning...', file=sys.stderr)
@@ -85,13 +92,16 @@ def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_t
     sam2_path =  intermediate_dir + '/' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '.sam'
     run_minimap2_reads2ref(reads1, ref1_path, num_threads, sam1_path, minimap2_path)
     run_minimap2_reads2ref(reads2, ref2_path, num_threads, sam2_path, minimap2_path)
-    stats1 = basic_acc_stats(sam1_path)
-    stats2 = basic_acc_stats(sam2_path)
-    print(f'For {name1}:', file=print_to_handle)
-    print_basic_acc_stats(stats1, print_to_handle=print_to_handle)
-    print(f'For {name2}:', file=print_to_handle)
-    print_basic_acc_stats(stats2, print_to_handle=print_to_handle)
-
+    print(name1, file=print_to_handle)
+    error_rates1 = estimate_error_bam(sam1_path, count_clip, upper_bound, print_to_handle)
+    print(name2, file=print_to_handle)
+    error_rates2 = estimate_error_bam(sam2_path, count_clip, upper_bound, print_to_handle)
+    histogram_path1 = intermediate_dir + '/../' + Path(reads1).stem + '_to_' + Path(ref1_path).stem + '.png'
+    histogram_path2 = intermediate_dir + '/../' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '.png'
+    plot_histogram(error_rates1, 0, upper_bound, bin_size, histogram_path1)
+    plot_histogram(error_rates2, 0, upper_bound, bin_size, histogram_path2)
+    
+    
 def assemble_hifiasm(path_to_reads, number_of_threads, output_prefix, reuse):
     return run_hifiasm_hetero_reads_only(output_prefix, number_of_threads, [path_to_reads], reuse)
 
@@ -129,7 +139,7 @@ def main():
 
 
     # outputs
-    reads_quality_stats = dir_for_all + '/reads_quality.txt'
+    reads_quality_logs = dir_for_all + '/above_upper_bound.txt'
     hifiasm_dir = dir_for_all + '/hifiasm'
     pomoxis_dir = dir_for_all + '/pomoxis'
     pomoxis_out1 = pomoxis_dir + '/assm1'
@@ -155,7 +165,7 @@ def main():
 
     if not args.r or not os.path.isfile(reads_quality_stats):
         # Output reads quality stats
-        with open(reads_quality_stats, 'w') as handle:
+        with open(reads_quality_logs, 'w') as handle:
             evaluate_reads_quality(
                 config['DEFAULT']['reads_path'],
                 config['reads_quality']['ref1_path'],
@@ -165,7 +175,10 @@ def main():
                 config['DEFAULT']['num_threads'],
                 intermediate_dir,
                 handle,
-                config['minimap2']['path']
+                config['minimap2']['path'],
+                config['reads_quality'].getboolean('count_clip'),
+                float(config['reads_quality']['upper_bound']),
+                int(config['reads_quality']['bin_size'])
             )
 
     # Assemble with hifiasm
