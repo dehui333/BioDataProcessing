@@ -8,7 +8,7 @@ from haplotype_info import separate_reads_to_files
 from pathlib import Path
 import os
 import pysam
-from run_programs import run_hifiasm_hetero_reads_only, run_pomoxis_assess_assm, run_quast, run_minimap2_reads2ref
+from run_programs import run_hifiasm_hetero_reads_only, run_hifiasm_homozygous_reads_only, run_pomoxis_assess_assm, run_quast, run_minimap2_reads2ref
 import subprocess
 import sys
 import time
@@ -110,12 +110,16 @@ def evaluate_reads_quality(reads_path, ref1_path, ref2_path, name1, name2, num_t
     histogram_path2_no_count_clip = intermediate_dir + '/../' + Path(reads2).stem + '_to_' + Path(ref2_path).stem + '_no-count-clip.png'
     plot_histogram(error_rates2_count_clip, 0, upper_bound, bin_size, histogram_path2_count_clip)
     plot_histogram(error_rates2_no_count_clip, 0, upper_bound, bin_size, histogram_path2_no_count_clip)
-    
+    return reads1, reads2
     
     
     
 def assemble_hifiasm(path_to_reads, number_of_threads, output_prefix, reuse):
     return run_hifiasm_hetero_reads_only(output_prefix, number_of_threads, [path_to_reads], reuse)
+
+def assemble_hifiasm_l0(path_to_reads, number_of_threads, output_prefix, reuse):
+    return run_hifiasm_homozygous_reads_only(output_prefix, number_of_threads, [path_to_reads], reuse)
+
 
 def evaluate_pomoxis(assm_paths, ref_path, output_prefixes, number_of_threads):
     for i in range(2):
@@ -151,17 +155,24 @@ def main():
 
 
     # outputs
+    hap1_name = config['reads_quality']['name1']
+    hap2_name = config['reads_quality']['name2']
     reads_quality_logs = dir_for_all + '/above_upper_bound.txt'
     reads_quality_logs_count_clip = dir_for_all + '/above_upper_bound_count_clip.txt'
+    reads_quality_logs_l0 = dir_for_all + '/above_upper_bound_l0.txt'
+    reads_quality_logs_count_clip_l0 = dir_for_all + '/above_upper_bound_count_clip_l0.txt'
     hifiasm_dir = dir_for_all + '/hifiasm'
     pomoxis_dir = dir_for_all + '/pomoxis'
     pomoxis_out1 = pomoxis_dir + '/assm1'
     pomoxis_out2 = pomoxis_dir + '/assm2'
+    pomoxis_l0_out1 = pomoxis_dir + '/l0_assm_' + hap1_name
+    pomoxis_l0_out2 = pomoxis_dir + '/l0_assm_' + hap2_name
     intermediate_dir = dir_for_all + '/intermediates'
     dgenies_dir = dir_for_all + '/dgenies'
     dgenies_log = dgenies_dir + '/log.txt'
     quast_dir = dir_for_all + '/quast' # will be created by quast
-    
+    quast_dir_l0 = dir_for_all + '/quast_l0'
+     
     if not dir_for_all:
         print(f'Output directory not specified!', file=sys.stderr)
         exit(1)
@@ -179,7 +190,7 @@ def main():
     if not args.r or not os.path.isfile(reads_quality_logs):
         # Output reads quality stats
         with open(reads_quality_logs, 'w') as handle, open(reads_quality_logs_count_clip, 'w') as handle_count_clip:
-            evaluate_reads_quality(
+            reads1, reads2 =evaluate_reads_quality(
                 config['DEFAULT']['reads_path'],
                 config['reads_quality']['ref1_path'],
                 config['reads_quality']['ref2_path'],
@@ -193,7 +204,6 @@ def main():
                 float(config['reads_quality']['upper_bound']),
                 int(config['reads_quality']['bin_size'])
             )
-
     # Assemble with hifiasm
     # labeling of haplotype by hifiasm may not correspond to ours
     assembly_paths = list(assemble_hifiasm(
@@ -203,14 +213,28 @@ def main():
         args.r
     ))
     
+    l0_assembly_path1 = assemble_hifiasm_l0(reads1,
+        config['DEFAULT']['num_threads'],
+        hifiasm_dir + '/assm_' + hap1_name,
+        args.r)
+    l0_assembly_path2 = assemble_hifiasm_l0(reads2,
+        config['DEFAULT']['num_threads'],
+        hifiasm_dir + '/assm_' + hap2_name,
+        args.r)
     # evaluate assembly with pomoxis assess_assembly
+    assembly_paths_l0 = [l0_assembly_path1, l0_assembly_path2]
     evaluate_pomoxis(
         assembly_paths,
         config['DEFAULT']['ref_path'],
         [pomoxis_out1, pomoxis_out2],
         config['DEFAULT']['num_threads']
     )
-
+    evaluate_pomoxis(
+        assembly_paths_l0,
+        config['DEFAULT']['ref_path'],
+        [pomoxis_l0_out1, pomoxis_l0_out2],
+        config['DEFAULT']['num_threads']
+    )
     # evaluate assembly with quast
     evaluate_quast(
         quast_dir,
@@ -218,7 +242,12 @@ def main():
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
     )
-    
+    evaluate_quast(
+        quast_dir_l0,
+        assembly_paths_l0,
+        config['DEFAULT']['ref_path'],
+        config['DEFAULT']['num_threads']
+    )
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
     timeout = int(config['dgenies']['timeout']) * 3600
@@ -234,6 +263,7 @@ def main():
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1, 30)
             time.sleep(60)
+            
             print('Plotting...', file=sys.stderr)
             plot(driver,
                 port_number,
@@ -242,6 +272,25 @@ def main():
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
             time.sleep(60)
+            
+            print('Plotting...', file=sys.stderr)
+            plot(driver,
+                port_number,
+                config['DEFAULT']['ref_path'],
+                assembly_paths_l0[0],
+                3, timeout, 30)
+            #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
+            time.sleep(60)
+            
+            print('Plotting...', file=sys.stderr)
+            plot(driver,
+                port_number,
+                config['DEFAULT']['ref_path'],
+                assembly_paths_l0[1],
+                3, timeout, 30)
+            #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
+            time.sleep(60)
+            
     except Exception as e:
         print(e, file=sys.stderr)
     finally:
