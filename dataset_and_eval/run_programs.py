@@ -65,6 +65,29 @@ def run_hifiasm_hetero_reads_only(output_prefix, num_threads, list_of_reads_path
         run('awk', None, ['/^S/{print ">"$2;print $3}', hap2_gfa], stdout=hap2_fasta_handle)
     return hap1_fasta, hap2_fasta
 
+def run_hifiasm_homozygous_reads_only(output_prefix, num_threads, paths_to_reads, reuse, bin_path='hifiasm'):
+    
+    contigs_fasta = output_prefix + '.contigs.fasta'
+    if reuse and os.path.isfile(contigs_fasta):
+        return contigs_fasta
+    named_arguments = {
+        '-o' : output_prefix,
+        '-t' : str(num_threads)
+    }
+
+    print('Assembling with hifiasm...', file=sys.stderr)
+    args = ['-l0']
+    args += paths_to_reads
+    #args.append(paths_to_reads)
+    run(bin_path, named_arguments, args)
+    contigs_gfa = output_prefix + '.bp.p_ctg.gfa'
+
+    # awk '/^S/{print ">"$2;print $3}' test.p_ctg.gfa > test.p_ctg.fa
+    with open(contigs_fasta, 'w') as contigs_fasta_handle:
+        run('awk', None, ['/^S/{print ">"$2;print $3}', contigs_gfa], stdout=contigs_fasta_handle)
+    return contigs_fasta
+
+
 def run_pomoxis_assess_assm(assm_path, ref_path, num_threads, output_prefix='assm'):
     named_arguments = {
         '-i' : assm_path,

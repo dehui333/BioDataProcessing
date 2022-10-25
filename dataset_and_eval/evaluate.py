@@ -176,7 +176,7 @@ def main():
         os.mkdir(hifiasm_dir)
         os.mkdir(dgenies_dir)
 
-    if not args.r or not os.path.isfile(reads_quality_stats):
+    if not args.r or not os.path.isfile(reads_quality_logs):
         # Output reads quality stats
         with open(reads_quality_logs, 'w') as handle, open(reads_quality_logs_count_clip, 'w') as handle_count_clip:
             evaluate_reads_quality(
