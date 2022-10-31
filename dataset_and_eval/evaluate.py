@@ -238,16 +238,17 @@ def main():
     # evaluate assembly with quast
     evaluate_quast(
         quast_dir,
-        assembly_paths,
+        assembly_paths + assembly_paths_l0,
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
     )
+    '''
     evaluate_quast(
         quast_dir_l0,
         assembly_paths_l0,
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
-    )
+    )'''
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
     timeout = int(config['dgenies']['timeout']) * 3600
