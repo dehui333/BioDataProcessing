@@ -122,7 +122,7 @@ def assemble_hifiasm_l0(path_to_reads, number_of_threads, output_prefix, reuse):
 
 
 def evaluate_pomoxis(assm_paths, ref_path, output_prefixes, number_of_threads):
-    for i in range(2):
+    for i in range(len(assm_paths)):
         run_pomoxis_assess_assm(assm_paths[i], ref_path, number_of_threads, output_prefixes[i])
     
 def evaluate_quast(output_dir, assm_paths, ref_path, num_threads):
@@ -171,8 +171,8 @@ def main():
     dgenies_dir = dir_for_all + '/dgenies'
     dgenies_log = dgenies_dir + '/log.txt'
     quast_dir = dir_for_all + '/quast' # will be created by quast
-    quast_dir_l0 = dir_for_all + '/quast_l0'
-     
+    quast_dir_l0_1 = dir_for_all + '/quast_l0_' + hap1_name
+    quast_dir_l0_2 = dir_for_all + '/quast_l0_' + hap2_name
     if not dir_for_all:
         print(f'Output directory not specified!', file=sys.stderr)
         exit(1)
@@ -187,23 +187,23 @@ def main():
         os.mkdir(hifiasm_dir)
         os.mkdir(dgenies_dir)
 
-    if not args.r or not os.path.isfile(reads_quality_logs):
+    #if not args.r or not os.path.isfile(reads_quality_logs):
         # Output reads quality stats
-        with open(reads_quality_logs, 'w') as handle, open(reads_quality_logs_count_clip, 'w') as handle_count_clip:
-            reads1, reads2 =evaluate_reads_quality(
-                config['DEFAULT']['reads_path'],
-                config['reads_quality']['ref1_path'],
-                config['reads_quality']['ref2_path'],
-                config['reads_quality']['name1'],
-                config['reads_quality']['name2'], 
-                config['DEFAULT']['num_threads'],
-                intermediate_dir,
-                handle,
-                handle_count_clip,
-                config['minimap2']['path'],
-                float(config['reads_quality']['upper_bound']),
-                int(config['reads_quality']['bin_size'])
-            )
+    with open(reads_quality_logs, 'w') as handle, open(reads_quality_logs_count_clip, 'w') as handle_count_clip:
+        reads1, reads2 =evaluate_reads_quality(
+            config['DEFAULT']['reads_path'],
+            config['reads_quality']['ref1_path'],
+            config['reads_quality']['ref2_path'],
+            config['reads_quality']['name1'],
+            config['reads_quality']['name2'], 
+            config['DEFAULT']['num_threads'],
+            intermediate_dir,
+            handle,
+            handle_count_clip,
+            config['minimap2']['path'],
+            float(config['reads_quality']['upper_bound']),
+            int(config['reads_quality']['bin_size'])
+        )
     # Assemble with hifiasm
     # labeling of haplotype by hifiasm may not correspond to ours
     assembly_paths = list(assemble_hifiasm(
@@ -222,33 +222,53 @@ def main():
         hifiasm_dir + '/assm_' + hap2_name,
         args.r)
     # evaluate assembly with pomoxis assess_assembly
-    assembly_paths_l0 = [l0_assembly_path1, l0_assembly_path2]
+    #assembly_paths_l0 = [l0_assembly_path1, l0_assembly_path2]
     evaluate_pomoxis(
         assembly_paths,
         config['DEFAULT']['ref_path'],
         [pomoxis_out1, pomoxis_out2],
         config['DEFAULT']['num_threads']
     )
+    '''
     evaluate_pomoxis(
         assembly_paths_l0,
         config['DEFAULT']['ref_path'],
         [pomoxis_l0_out1, pomoxis_l0_out2],
         config['DEFAULT']['num_threads']
+    )'''
+    evaluate_pomoxis(
+        [l0_assembly_path1],
+        config['DEFAULT']['hap1_ref_path'],
+        [pomoxis_l0_out1],
+        config['DEFAULT']['num_threads']
     )
+    evaluate_pomoxis(
+        [l0_assembly_path2],
+        config['DEFAULT']['hap2_ref_path'],
+        [pomoxis_l0_out2],
+        config['DEFAULT']['num_threads']
+    )
+    '''
     # evaluate assembly with quast
     evaluate_quast(
         quast_dir,
-        assembly_paths + assembly_paths_l0,
+        assembly_paths,
         config['DEFAULT']['ref_path'],
         config['DEFAULT']['num_threads']
     )
     '''
     evaluate_quast(
-        quast_dir_l0,
-        assembly_paths_l0,
-        config['DEFAULT']['ref_path'],
+        quast_dir_l0_1,
+        [l0_assembly_path1],
+        config['DEFAULT']['hap1_ref_path'],
         config['DEFAULT']['num_threads']
-    )'''
+    )
+    evaluate_quast(
+        quast_dir_l0_2,
+        [l0_assembly_path2],
+        config['DEFAULT']['hap2_ref_path'],
+        config['DEFAULT']['num_threads']
+    )
     # evaluate assembly with dgenies
     print('Starting dgenies...', file=sys.stderr)
     timeout = int(config['dgenies']['timeout']) * 3600
@@ -277,8 +297,8 @@ def main():
             print('Plotting...', file=sys.stderr)
             plot(driver,
                 port_number,
-                config['DEFAULT']['ref_path'],
-                assembly_paths_l0[0],
+                config['DEFAULT']['hap1_ref_path'],
+                l0_assembly_path1,
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
             time.sleep(60)
@@ -286,8 +306,8 @@ def main():
             print('Plotting...', file=sys.stderr)
             plot(driver,
                 port_number,
-                config['DEFAULT']['ref_path'],
-                assembly_paths_l0[1],
+                config['DEFAULT']['hap2_ref_path'],
+                l0_assembly_path2,
                 3, timeout, 30)
             #wait_for_download(dgenies_dir, num_file1+num_file2, 30)
             time.sleep(60)

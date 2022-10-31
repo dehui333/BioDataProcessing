@@ -4,7 +4,7 @@ import argparse
 from Bio import SeqIO
 import os
 from pathlib import Path
-
+import sys
 '''
 Append a suffix to all sequence ids.
 '''    
