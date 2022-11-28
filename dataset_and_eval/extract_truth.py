@@ -17,7 +17,7 @@ def extract(reads2ref_bam_path):
             print(record.get_reference_sequence().upper())
 
 def main():
-    parser = argparse.ArgumentParser(description='Extract the truth reads from reads2trimmed alignment.')
+    parser = argparse.ArgumentParser(description='Extract the truth reads from reads2referece alignment.')
     parser.add_argument('-i', '--input', type=str, help='Path to the bam/sam.')
     args = parser.parse_args()
 
